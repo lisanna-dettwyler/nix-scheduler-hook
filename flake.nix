@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
-    nix.url = "github:nixos/nix";
+    # nix.url = "github:nixos/nix";
     # slurm = {
     #   url = "github:SchedMD/slurm";
     #   flake = false;
@@ -21,7 +21,6 @@
     packages.x86_64-linux.default = packages.x86_64-linux.nix-scheduler-hook;
     packages.x86_64-linux.nix-scheduler-hook = import ./default.nix {
       pkgs = pkgs;
-      nix = inputs.nix.nix-everything;
       restc-cpp = inputs.restc-cpp;
     };
   };
