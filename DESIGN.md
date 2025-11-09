@@ -7,7 +7,7 @@ build-remote, upon accepting a build, copies the dependencies to the remote, and
 - [x] Setup slurm's REST API daemon.
 - [x] Configure project with a rest library
 - [x] Include nix in build tree, builds successfully as meson subproject
-- [ ] Patch nix's top-level meson.build file to exclude subprojects we don't need
+- [x] Use ccache
 - [ ] Parse a config file
 - [ ] Use the rest library to perform a basic test
 - [ ] Try to submit a job to slurm that does anything.

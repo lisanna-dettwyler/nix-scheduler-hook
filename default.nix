@@ -1,6 +1,6 @@
 { pkgs, restc-cpp ? ./subprojects/restc-cpp }:
 with pkgs;
-stdenv.mkDerivation {
+ccacheStdenv.mkDerivation {
   name = "nix-scheduler-hook";
   src = ./.;
   nativeBuildInputs = [
