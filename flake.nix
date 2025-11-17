@@ -3,13 +3,12 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
-    # nix.url = "github:nixos/nix";
-    # slurm = {
-    #   url = "github:SchedMD/slurm";
-    #   flake = false;
-    # };
-    restc-cpp = {
-      url = "github:jgaa/restc-cpp";
+    nlohmann-json = {
+      url = "github:nlohmann/json";
+      flake = false;
+    };
+    restclient-cpp = {
+      url = "github:mrtazz/restclient-cpp";
       flake = false;
     };
   };
@@ -51,7 +50,8 @@
     packages.x86_64-linux.default = packages.x86_64-linux.nix-scheduler-hook;
     packages.x86_64-linux.nix-scheduler-hook = import ./default.nix {
       pkgs = pkgs;
-      restc-cpp = inputs.restc-cpp;
+      nlohmann-json = inputs.nlohmann-json;
+      restclient-cpp = inputs.restclient-cpp;
     };
   };
 }

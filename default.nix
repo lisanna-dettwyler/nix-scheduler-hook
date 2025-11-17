@@ -1,4 +1,4 @@
-{ pkgs, restc-cpp ? ./subprojects/restc-cpp }:
+{ pkgs, nlohmann-json, restclient-cpp }:
 with pkgs;
 ccacheStdenv.mkDerivation {
   name = "nix-scheduler-hook";
@@ -39,7 +39,8 @@ ccacheStdenv.mkDerivation {
 
   postUnpack = ''
     mkdir $sourceRoot/subprojects
-    cp -r ${restc-cpp} $sourceRoot/subprojects/restc-cpp
+    cp -r ${restclient-cpp} $sourceRoot/subprojects/restclient-cpp
+    cp -r ${nlohmann-json} $sourceRoot/subprojects/nlohmann-json
     cp -r ${nix.src} $sourceRoot/subprojects/nix_top
   '';
 

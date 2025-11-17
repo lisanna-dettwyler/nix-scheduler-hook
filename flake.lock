@@ -15,26 +15,43 @@
         "type": "github"
       }
     },
-    "restc-cpp": {
+    "nlohmann-json": {
       "flake": false,
       "locked": {
-        "lastModified": 1759498655,
-        "narHash": "sha256-6pj8IpX+3d38Dt/PMMSDOD5otawjpYI9yXwnoc0CI/o=",
-        "owner": "jgaa",
-        "repo": "restc-cpp",
-        "rev": "c7b58a37f7364f313140c7a4c4a1613ceb3dae18",
+        "lastModified": 1762973567,
+        "narHash": "sha256-0SopAk6HNH7qqn0g3bbxd74QFC0YPQEgJ3XpD9dRUPM=",
+        "owner": "nlohmann",
+        "repo": "json",
+        "rev": "49026f799983840d7cf1a8109ffffe7eb4b1012c",
         "type": "github"
       },
       "original": {
-        "owner": "jgaa",
-        "repo": "restc-cpp",
+        "owner": "nlohmann",
+        "repo": "json",
+        "type": "github"
+      }
+    },
+    "restclient-cpp": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1735902176,
+        "narHash": "sha256-9//KssNRD7OJFNFdXgzsu7rKP/Nlb4wtmBjfhOt2Vgw=",
+        "owner": "mrtazz",
+        "repo": "restclient-cpp",
+        "rev": "3356f816b161279cfbe318c45cb07c07fb8de6df",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mrtazz",
+        "repo": "restclient-cpp",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "restc-cpp": "restc-cpp"
+        "nlohmann-json": "nlohmann-json",
+        "restclient-cpp": "restclient-cpp"
       }
     }
   },

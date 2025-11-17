@@ -8,7 +8,13 @@ build-remote, upon accepting a build, copies the dependencies to the remote, and
 - [x] Configure project with a rest library
 - [x] Include nix in build tree, builds successfully as meson subproject
 - [x] Use ccache
-- [ ] Parse a config file
-- [ ] Use the rest library to perform a basic test
-- [ ] Try to submit a job to slurm that does anything.
+- [x] Parse a config file
+- [x] Use the rest library to perform a basic test
+- [x] Try to submit a job to slurm that does anything.
+- [x] Use the rest API to submit a job to slurm that realizes a drv
+- [x] Open a SSH connection and store to the remote
+- [x] Create a derivation with dependencies that rebuilds every time
+- [x] Tail the build log
+- [ ] Resolve the dependencies and copy them to the remote
+- [ ] Copy the drv to the remote to trigger the build starting
 - [ ] Act as a build hook, try to submit to slurm, and if successful return accept.
