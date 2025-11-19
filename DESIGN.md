@@ -15,6 +15,8 @@ build-remote, upon accepting a build, copies the dependencies to the remote, and
 - [x] Open a SSH connection and store to the remote
 - [x] Create a derivation with dependencies that rebuilds every time
 - [x] Tail the build log
-- [ ] Resolve the dependencies and copy them to the remote
-- [ ] Copy the drv to the remote to trigger the build starting
-- [ ] Act as a build hook, try to submit to slurm, and if successful return accept.
+- [x] Resolve the dependencies and copy them to the remote
+- [x] Copy the drv to the remote to trigger the build starting
+- [x] Act as a build hook, try to submit to slurm, and if successful return accept.
+- [ ] Query exit code once we get activity on stdout rather than timed with exponential backoff
+- [ ] On decline, instead of returning decline, try forwarding to the regular build hook.

@@ -17,6 +17,13 @@ struct Settings : public nix::Config
         "Which job scheduler to use, currently only 'slurm' is available."
     };
 
+    nix::Setting <std::string> system {
+        this,
+        "x86_64-linux",
+        "system",
+        "The system type of this cluster, jobs requiring a different system will not be routed to the scheduler."
+    };
+
     nix::Setting<std::string> slurmApiHost {
         this,
         "localhost",
@@ -37,10 +44,17 @@ struct Settings : public nix::Config
         "slurm-jwt-token",
         "JWT token for authentication to the Slurm REST API."
     };
+
+    nix::Setting<std::string> slurmExtraJobSubmissionParams {
+        this,
+        {},
+        "slurm-extra-submission-params",
+        "Extra parameters to set in the /job/submit API request, as a JSON dictionary that will be merged with the 'job' value."
+    };
 };
 
 void loadConfFile(nix::AbstractConfig & config);
 
 std::vector<nix::Path> getUserConfigFiles();
 
-extern Settings settings;
+extern Settings ourSettings;

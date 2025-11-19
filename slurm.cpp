@@ -1,30 +1,41 @@
 #include "slurm.hh"
 #include "settings.hh"
 
-#include <ext/stdio_filebuf.h>
+#include <string>
 #include <iostream>
 #include <fstream>
-#include <thread>
-using namespace std::chrono_literals;
+#include <sstream>
 #include <memory>
 #include <thread>
+using namespace std::chrono_literals;
 #include <atomic>
 #include <fcntl.h>
 
 #include <nlohmann/json.hpp>
 using namespace nlohmann;
 
-#include <nix/store/ssh.hh>
 #include <nix/store/store-open.hh>
 #include <nix/store/store-api.hh>
-#include <nix/store/ssh-store.hh>
-#include <nix/util/types.hh>
-#include <nix/util/serialise.hh>
 
-void slurmBuildDerivation(nix::StorePath drvPath)
+static std::shared_ptr<RestClient::Connection> slurmGetConn()
 {
-    const std::string jobStdout = "/tmp/job-" + std::string(drvPath.to_string()) + ".stdout";
-    const std::string jobStderr = "/tmp/job-" + std::string(drvPath.to_string()) + ".stderr";
+    static bool init = false;
+    static std::shared_ptr<RestClient::Connection> conn;
+    if (!init) {
+        RestClient::init();
+        conn = std::make_shared<RestClient::Connection>(
+            nix::fmt("http://%s:%d", ourSettings.slurmApiHost.get(), ourSettings.slurmApiPort.get()));
+        RestClient::HeaderFields headers;
+        headers["X-SLURM-USER-TOKEN"] = ourSettings.slurmJwtToken.get();
+        headers["Content-Type"] = "application/json";
+        conn->SetHeaders(headers);
+        init = true;
+    }
+    return conn;
+}
+
+std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string jobStdout, std::string jobStderr)
+{
     json req = {
         {"job", {
             // {"argv", {}},
@@ -37,22 +48,25 @@ void slurmBuildDerivation(nix::StorePath drvPath)
         }}
     };
 
-    RestClient::init();
-    RestClient::Connection *conn = new RestClient::Connection(nix::fmt("http://%s:%d", settings.slurmApiHost.get(), settings.slurmApiPort.get()));
-    RestClient::HeaderFields headers;
-    headers["X-SLURM-USER-TOKEN"] = settings.slurmJwtToken.get();
-    headers["Content-Type"] = "application/json";
-    conn->SetHeaders(headers);
-    RestClient::Response r = conn->post("/slurm/v0.0.43/job/submit", req.dump());
-    std::cout << r.body << std::endl;
+    if (ourSettings.slurmExtraJobSubmissionParams.get() != "") {
+        json extraParams = json::parse(ourSettings.slurmExtraJobSubmissionParams.get());
+        for (auto & [key, value] : extraParams.items()) {
+            req["job"][key] = value;
+        }
+    }
 
+    auto conn = slurmGetConn();
+    RestClient::Response r = conn->post("/slurm/v0.0.43/job/submit", req.dump());
+    if (r.body == "Authentication failure") {
+        throw SlurmAuthenticationError(r.body);
+    }
     json response = json::parse(r.body);
     int jobIdInt = response["job_id"];
     std::string jobId = std::to_string(jobIdInt);
-    std::cout << "got job_id " << jobId << std::endl;
 
     bool foundBatchHost = false;
     std::string batchHost;
+    auto sleepTime = 50ms;
     while (!foundBatchHost) {
         RestClient::Response qr = conn->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
@@ -64,60 +78,40 @@ void slurmBuildDerivation(nix::StorePath drvPath)
             batchHost = qresp["jobs"][0]["batch_host"];
             foundBatchHost = true;
         } else {
-            std::this_thread::sleep_for(500ms);
-        }
-    }
-    std::cout << "got batch_host [" << batchHost << "]" << std::endl;
-
-    auto baseStoreConfig = nix::resolveStoreConfig(nix::StoreReference::parse("ssh-ng://" + batchHost));
-    auto sshStoreConfig = std::dynamic_pointer_cast<nix::SSHStoreConfig>(baseStoreConfig.get_ptr());
-    auto sshMaster = sshStoreConfig->createSSHMaster(false);
-
-    std::shared_ptr<nix::Store> store = nix::openStore("ssh-ng://" + batchHost);
-    store->connect();
-
-    nix::Strings stderrTailCmd = {"tail", "-f", jobStderr};
-    auto cmd = sshMaster.startCommand(std::move(stderrTailCmd));
-    auto cmdOutFd = cmd->out.release();
-    int flags = fcntl(cmdOutFd, F_GETFL, 0);
-    fcntl(cmdOutFd, F_SETFL, flags | O_NONBLOCK);
-    __gnu_cxx::stdio_filebuf<char> cmdOutBuf(cmdOutFd, std::ios::in);
-    std::istream cmdOutIs(&cmdOutBuf);
-    std::atomic_bool cmdDone = false;
-    std::thread cmdOutThread([&]() {
-        std::string line;
-        while (!cmdDone) {
-            if (std::getline(cmdOutIs, line)) {
-                std::cerr << line << std::endl;
-            } else {
-                std::this_thread::sleep_for(100ms);
-                cmdOutIs.clear();
-            }
-        }
-        while (std::getline(cmdOutIs, line)) {
-            std::cerr << line << std::endl;
-        }
-    });
-
-    while (!cmdDone) {
-        auto state = slurmGetJobState(conn, jobId);
-        if (state != "PENDING" && state != "RUNNING") {
-            cmdDone = true;
+            std::this_thread::sleep_for(sleepTime);
+            sleepTime *= 2;
         }
     }
 
-    cmdOutThread.join();
+    return {batchHost, jobId};
 }
 
-std::string slurmGetJobState(RestClient::Connection *conn, std::string jobId)
+std::string slurmGetJobState(std::string jobId)
 {
+    auto sleepTime = 50ms;
     while (true) {
-        RestClient::Response qr = conn->get("/slurm/v0.0.43/job/" + jobId);
+        RestClient::Response qr = slurmGetConn()->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
         if (qresp["jobs"].size() == 1) {
             return qresp["jobs"][0]["job_state"][0];
         } else {
-            std::this_thread::sleep_for(500ms);  // TODO: progressive backoff
+            std::this_thread::sleep_for(sleepTime);
+            sleepTime *= 2;
+        }
+    }
+}
+
+uint32_t slurmGetJobReturnCode(std::string jobId)
+{
+    auto sleepTime = 50ms;
+    while (true) {
+        RestClient::Response qr = slurmGetConn()->get("/slurm/v0.0.43/job/" + jobId);
+        json qresp = json::parse(qr.body);
+        if (qresp["jobs"].size() == 1 && qresp["jobs"][0]["exit_code"]["return_code"]["set"]) {
+            return qresp["jobs"][0]["exit_code"]["return_code"]["number"];
+        } else {
+            std::this_thread::sleep_for(sleepTime);
+            sleepTime *= 2;
         }
     }
 }

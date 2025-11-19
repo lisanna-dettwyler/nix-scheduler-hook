@@ -5,12 +5,15 @@
 #include <nix/util/users.hh>
 #include <nix/util/strings.hh>
 #include <nix/util/error.hh>
+#include <nix/store/globals.hh>
+
+#define NIX_CONF_DIR "/etc/nix"
 
 Settings::Settings()
-    : confDir(nix::canonPath(nix::getEnvNonEmpty("NSH_CONF_DIR").value_or(NSH_CONF_DIR)))
+    : confDir(nix::canonPath(nix::getEnvNonEmpty("NIX_CONF_DIR").value_or(NIX_CONF_DIR)))
     , userConfFiles(getUserConfigFiles())
 {}
-Settings settings;
+Settings ourSettings;
 
 void loadConfFile(nix::AbstractConfig & config)
 {
@@ -22,9 +25,9 @@ void loadConfFile(nix::AbstractConfig & config)
         }
     };
 
-    applyConfigFile(settings.confDir + "/nsh.conf");
+    applyConfigFile(nix::settings.nixConfDir + "/nsh.conf");
 
-    auto files = settings.userConfFiles;
+    auto files = ourSettings.userConfFiles;
     for (auto file = files.rbegin(); file != files.rend(); file++) {
         applyConfigFile(*file);
     }
