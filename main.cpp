@@ -1,6 +1,7 @@
 #include <iostream>
 #include <optional>
 #include <thread>
+#include <memory>
 using namespace std::chrono_literals;
 #include <ext/stdio_filebuf.h>
 
@@ -30,6 +31,7 @@ using namespace std::chrono_literals;
 
 #include "settings.hh"
 #include "slurm.hh"
+#include "logging.hh"
 
 static void handleAlarm(int sig) {}
 
@@ -204,29 +206,41 @@ int main(int argc, char **argv)
     fcntl(cmdOutFd, F_SETFL, flags | O_NONBLOCK);
     __gnu_cxx::stdio_filebuf<char> cmdOutBuf(cmdOutFd, std::ios::in);
     std::istream cmdOutIs(&cmdOutBuf);
-    std::atomic_bool cmdDone = false;
+    std::atomic_bool cmdAbend = false;
     std::thread cmdOutThread([&]() {
-        std::string line;
-        while (!cmdDone) {
-            if (std::getline(cmdOutIs, line)) {
-                nix::Activity act(*nix::logger, nix::lvlInfo, nix::actUnknown, line);
-                // std::cout << line << std::endl;
+        using namespace nix;
+        bool gotTerminator = false;
+        while (!cmdAbend && !gotTerminator) {
+            std::string data;
+            char c;
+            while (cmdOutIs.get(c)) {
+                data += c;
+            }
+            if (data != "") {
+                gotTerminator = handleOutput(data);
             } else {
                 std::this_thread::sleep_for(100ms);
                 cmdOutIs.clear();
             }
         }
-        while (std::getline(cmdOutIs, line)) {
-            nix::Activity act(*nix::logger, nix::lvlInfo, nix::actUnknown, line);
-            // std::cout << line << std::endl;
+        std::string data;
+        char c;
+        while (cmdOutIs.get(c)) {
+            data += c;
+        }
+        if (data != "") {
+            handleOutput(data);
         }
     });
 
+    bool cmdDone = false;
     while (!cmdDone) {
         if (ourSettings.jobScheduler.get() == "slurm") {
             auto state = slurmGetJobState(jobId);
             if (state != "PENDING" && state != "RUNNING") {
                 cmdDone = true;
+                if (state != "COMPLETED")
+                    cmdAbend = true;
             }
         } else {
             using namespace nix;
