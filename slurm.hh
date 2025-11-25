@@ -14,7 +14,7 @@ public:
         std::runtime_error(s) {}
 };
 
-std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string jobStdout, std::string jobStderr);
+std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string rootPath, std::string jobStderr);
 
 std::string slurmGetJobState(std::string jobId);
 

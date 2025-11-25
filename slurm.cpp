@@ -34,7 +34,7 @@ static std::shared_ptr<RestClient::Connection> slurmGetConn()
     return conn;
 }
 
-std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string jobStdout, std::string jobStderr)
+std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string rootPath, std::string jobStderr)
 {
     json req = {
         {"job", {
@@ -42,8 +42,8 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
             {"name", "Nix Build - " + std::string(drvPath.to_string())},
             {"current_working_directory", "/tmp"},
             {"environment", {"PATH=/usr/local/bin:/usr/bin:/bin:/nix/var/nix/profiles/default/bin"}},
-            {"script", "#!/bin/bash\nwhile [ ! -e /nix/store/" + std::string(drvPath.to_string()) + " ]; do sleep 0.1; done; nix-store --realise /nix/store/" + std::string(drvPath.to_string()) + "; echo '@nsh done' >&2"},
-            {"standard_output", jobStdout},
+            {"script", nix::fmt("#!/bin/bash\nwhile [ ! -e /nix/store/%s ]; do sleep 0.1; done; nix-store --realise /nix/store/%s --add-root %s; echo '@nsh done' >&2",
+                std::string(drvPath.to_string()), std::string(drvPath.to_string()), rootPath)},
             {"standard_error", jobStderr},
         }}
     };

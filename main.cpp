@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     
     // nix::BuildResult optResult;
     
-    const std::string jobStdout = "/tmp/job-" + std::string(drvPath.to_string()) + ".stdout";
+    const std::string rootPath = "/tmp/job-" + std::string(drvPath.to_string()) + ".root";
     const std::string jobStderr = "/tmp/job-" + std::string(drvPath.to_string()) + ".stderr";
     
     ::loadConfFile(ourSettings);
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     std::string jobId;
     if (ourSettings.jobScheduler.get() == "slurm") {
         try {
-            auto r = slurmBuildDerivation(drvPath, jobStdout, jobStderr);
+            auto r = slurmBuildDerivation(drvPath, rootPath, jobStderr);
             host = r.first;
             jobId = r.second;
         } catch (std::exception & e) {
@@ -292,6 +292,10 @@ int main(int argc, char **argv)
                 localStore->locksHeld.insert(store->printStorePath(path)); /* FIXME: ugly */
         copyPaths(*sshStore, *store, missingPaths, NoRepair, NoCheckSigs, NoSubstitute);
     }
+
+    nix::Strings rmRootCmd = {"rm", rootPath};
+    sshMaster.startCommand(std::move(rmRootCmd));
+
     // XXX: Should be done as part of `copyPaths`
     for (auto & realisation : missingRealisations) {
         // Should hold, because if the feature isn't enabled the set
