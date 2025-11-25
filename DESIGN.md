@@ -19,7 +19,7 @@ build-remote, upon accepting a build, copies the dependencies to the remote, and
 - [x] Copy the drv to the remote to trigger the build starting
 - [x] Act as a build hook, try to submit to slurm, and if successful return accept.
 - [ ] Query exit code once we get activity on stdout rather than timed with exponential backoff
-- [ ] Fix logging
+- [x] Fix logging
 - [ ] Cleanup slurm code
 - [ ] Don't hardcode /nix/store in slurm job
 - [ ] On decline, instead of returning decline, try forwarding to the regular build hook.
