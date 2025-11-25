@@ -256,6 +256,9 @@ int main(int argc, char **argv)
         // Build failed, so no more work to do
         return code;
     }
+    if (cmdAbend) {
+        return 1;
+    }
 
     using namespace nix;
     auto drv = store->readDerivation(drvPath);
