@@ -191,10 +191,24 @@ int main(int argc, char **argv)
 
     {
         nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("copying dependencies to '%s'", storeUri));
-        nix::copyPaths(*store, *sshStore, store->parseStorePathSet(inputs), nix::NoRepair, nix::NoCheckSigs, substitute);
+        try {
+            nix::copyPaths(*store, *sshStore, store->parseStorePathSet(inputs), nix::NoRepair, nix::NoCheckSigs, substitute);
+        } catch (std::exception & e) {
+            using namespace nix;
+            printError("Error when attempting to copy build dependencies: %s", e.what());
+            std::cerr << "# decline-permanently\n";
+            return 0;
+        }
         nix::PathSet rootDrv;
         rootDrv.insert(store->printStorePath(drvPath));
-        nix::copyPaths(*store, *sshStore, store->parseStorePathSet(rootDrv), nix::NoRepair, nix::NoCheckSigs, substitute);
+        try {
+            nix::copyClosure(*store, *sshStore, store->parseStorePathSet(rootDrv), nix::NoRepair, nix::NoCheckSigs, substitute);
+        } catch (std::exception & e) {
+            using namespace nix;
+            printError("Error when attempting to copy root derivation closure: %s", e.what());
+            std::cerr << "# decline-permanently\n";
+            return 0;
+        }
     }
 
     uploadLock = -1;
