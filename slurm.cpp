@@ -42,7 +42,7 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
             {"name", "Nix Build - " + std::string(drvPath.to_string())},
             {"current_working_directory", "/tmp"},
             {"environment", {"PATH=/usr/local/bin:/usr/bin:/bin:/nix/var/nix/profiles/default/bin"}},
-            {"script", nix::fmt("#!/bin/bash\nwhile [ ! -e /nix/store/%s ]; do sleep 0.1; done; nix-store --realise /nix/store/%s --add-root %s; echo '@nsh done' >&2",
+            {"script", nix::fmt("#!/bin/bash\nwhile [ ! -e /nix/store/%s ]; do sleep 0.1; done; nix-store --realise /nix/store/%s --add-root %s --quiet; echo '@nsh done' >&2",
                 std::string(drvPath.to_string()), std::string(drvPath.to_string()), rootPath)},
             {"standard_error", jobStderr},
         }}
