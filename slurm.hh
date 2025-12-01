@@ -14,6 +14,13 @@ public:
         std::runtime_error(s) {}
 };
 
+class SlurmSubmitError : public std::runtime_error
+{
+public:
+    explicit SlurmSubmitError(const std::string &s) :
+        std::runtime_error(s) {}
+};
+
 std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string rootPath, std::string jobStderr);
 
 std::string slurmGetJobState(std::string jobId);

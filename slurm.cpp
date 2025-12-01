@@ -61,6 +61,12 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
         throw SlurmAuthenticationError(r.body);
     }
     json response = json::parse(r.body);
+    if (response["errors"].size() > 0) {
+        throw SlurmSubmitError(nix::fmt("%s (%d): %s",
+            response["errors"][0]["description"],
+            response["errors"][0]["error_number"],
+            response["errors"][0]["error"]));
+    }
     int jobIdInt = response["job_id"];
     std::string jobId = std::to_string(jobIdInt);
 
