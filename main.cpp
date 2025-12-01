@@ -1,8 +1,8 @@
 #include <iostream>
 #include <optional>
 #include <thread>
-#include <memory>
 using namespace std::chrono_literals;
+#include <memory>
 #include <ext/stdio_filebuf.h>
 
 // #include <restc-cpp/restc-cpp.h>
@@ -222,7 +222,9 @@ int main(int argc, char **argv)
     std::istream cmdOutIs(&cmdOutBuf);
     std::atomic_bool cmdAbend = false;
     std::thread cmdOutThread([&]() {
-        using namespace nix;
+        __gnu_cxx::stdio_filebuf<char> logBuf(4, std::ios::out);
+        std::ostream logOs(&logBuf);
+
         bool gotTerminator = false;
         while (!cmdAbend && !gotTerminator) {
             std::string data;
@@ -231,7 +233,7 @@ int main(int argc, char **argv)
                 data += c;
             }
             if (data != "") {
-                gotTerminator = handleOutput(data);
+                gotTerminator = handleOutput(logOs, data);
             } else {
                 std::this_thread::sleep_for(100ms);
                 cmdOutIs.clear();
@@ -243,7 +245,7 @@ int main(int argc, char **argv)
             data += c;
         }
         if (data != "") {
-            handleOutput(data);
+            handleOutput(logOs, data);
         }
     });
 

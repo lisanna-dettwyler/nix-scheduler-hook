@@ -7,7 +7,7 @@
 
 #define NSH_BUILD_LOG_TERMINATOR "@nsh done"
 
-bool handleOutput(std::string_view data)
+bool handleOutput(std::ostream & logOs, std::string_view data)
 {
     using namespace nix;
     static unsigned long logSize = 0;
@@ -27,7 +27,7 @@ bool handleOutput(std::string_view data)
             currentLogLinePos = 0;
         else if (c == '\n') {
             if (currentLogLine != NSH_BUILD_LOG_TERMINATOR) {
-                printError(currentLogLine);
+                logOs << currentLogLine << '\n';
                 currentLogLine.clear();
                 currentLogLinePos = 0;
             } else return true;
