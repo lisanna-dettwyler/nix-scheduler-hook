@@ -85,7 +85,7 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
             foundBatchHost = true;
         } else {
             std::this_thread::sleep_for(sleepTime);
-            sleepTime *= 2;
+            if (sleepTime < 1s) sleepTime *= 2;
         }
     }
 
