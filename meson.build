@@ -36,4 +36,4 @@ sources = files(
     'slurm.cpp',
 )
 
-executable('demo', sources, dependencies : [restclient_dep, json_dep, boost_dep, nix_util, nix_store, nix_main])
+executable('nsh', sources, dependencies : [restclient_dep, json_dep, boost_dep, nix_util, nix_store, nix_main])
