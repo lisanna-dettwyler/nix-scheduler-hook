@@ -103,27 +103,12 @@ int main(int argc, char **argv)
         std::cerr << "# decline\n";
         return 0;
     }
-    
-    // nix::BuildResult optResult;
-    
-    const std::string rootPath = "/tmp/job-" + std::string(drvPath.to_string()) + ".root";
-    const std::string jobStderr = "/tmp/job-" + std::string(drvPath.to_string()) + ".stderr";
-    
+
     ::loadConfFile(ourSettings);
-    
-    std::string host;
-    std::string jobId;
+
+    std::unique_ptr<Scheduler> scheduler;
     if (ourSettings.jobScheduler.get() == "slurm") {
-        try {
-            auto r = slurmBuildDerivation(drvPath, rootPath, jobStderr);
-            host = r.first;
-            jobId = r.second;
-        } catch (std::exception & e) {
-            using namespace nix;
-            printError("Error when attempting to build derivation on Slurm: %s", e.what());
-            std::cerr << "# decline-permanently\n";
-            return 0;
-        }
+        scheduler = std::make_unique<Slurm>();
     } else {
         using namespace nix;
         printError("unsupported job scheduler %s", ourSettings.jobScheduler.get());
@@ -131,12 +116,20 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    std::string host;
+    try {
+        host = scheduler->startBuild(drvPath);
+    } catch (std::exception & e) {
+        using namespace nix;
+        printError("Error when attempting to build derivation on %s: %s", ourSettings.jobScheduler.get(), e.what());
+        std::cerr << "# decline-permanently\n";
+        return 0;
+    }
+
     const std::string storeUri = "ssh-ng://" + host;
-    
     {
         nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
     }
-
     auto baseStoreConfig = nix::resolveStoreConfig(nix::StoreReference::parse(storeUri));
     auto sshStoreConfig = std::dynamic_pointer_cast<nix::SSHStoreConfig>(baseStoreConfig.get_ptr());
     auto sshMaster = sshStoreConfig->createSSHMaster(false);
@@ -212,69 +205,42 @@ int main(int argc, char **argv)
     }
 
     uploadLock = -1;
-
-    nix::Strings stderrTailCmd = {"tail", "-f", jobStderr};
-    auto cmd = sshMaster.startCommand(std::move(stderrTailCmd));
-    auto cmdOutFd = cmd->out.release();
-    int flags = fcntl(cmdOutFd, F_GETFL, 0);
-    fcntl(cmdOutFd, F_SETFL, flags | O_NONBLOCK);
-    __gnu_cxx::stdio_filebuf<char> cmdOutBuf(cmdOutFd, std::ios::in);
-    std::istream cmdOutIs(&cmdOutBuf);
-    std::atomic_bool cmdAbend = false;
+    
     std::thread cmdOutThread([&]() {
+        auto cmdOutIs = scheduler->getStderrStream();
+
+        // The invoking Nix process listens on fd 4 for the build log
+        // See https://github.com/NixOS/nix/blob/master/src/libstore/unix/build/hook-instance.cc#L61
         __gnu_cxx::stdio_filebuf<char> logBuf(4, std::ios::out);
         std::ostream logOs(&logBuf);
 
         bool gotTerminator = false;
-        while (!cmdAbend && !gotTerminator) {
+        while (!gotTerminator) {
             std::string data;
             char c;
-            while (cmdOutIs.get(c)) {
+            while (cmdOutIs->get(c)) {
                 data += c;
             }
             if (data != "") {
                 gotTerminator = handleOutput(logOs, data);
             } else {
-                std::this_thread::sleep_for(100ms);
-                cmdOutIs.clear();
+                std::this_thread::yield();
+                cmdOutIs->clear();
             }
-        }
-        std::string data;
-        char c;
-        while (cmdOutIs.get(c)) {
-            data += c;
-        }
-        if (data != "") {
-            handleOutput(logOs, data);
         }
     });
 
-    bool cmdDone = false;
-    while (!cmdDone) {
-        if (ourSettings.jobScheduler.get() == "slurm") {
-            auto state = slurmGetJobState(jobId);
-            if (state != "PENDING" && state != "RUNNING") {
-                cmdDone = true;
-                if (state != "COMPLETED")
-                    cmdAbend = true;
-            }
-        } else {
-            using namespace nix;
-            printError("unsupported job scheduler %s", ourSettings.jobScheduler.get());
-            return 1;
-        }
+    int rc = scheduler->waitForJobFinish();
+    if (rc == -1) {
+        using namespace nix;
+        printError("Job %s abnormally terminated.", scheduler->getJobId());
+        return 1;
+    } else if (rc) {
+        // Build failed, so no more work to do
+        return rc;
     }
 
     cmdOutThread.join();
-
-    uint32_t code = slurmGetJobReturnCode(jobId);
-    if (code) {
-        // Build failed, so no more work to do
-        return code;
-    }
-    if (cmdAbend) {
-        return 1;
-    }
 
     using namespace nix;
     auto drv = store->readDerivation(drvPath);
@@ -308,9 +274,6 @@ int main(int argc, char **argv)
                 localStore->locksHeld.insert(store->printStorePath(path)); /* FIXME: ugly */
         copyPaths(*sshStore, *store, missingPaths, NoRepair, NoCheckSigs, NoSubstitute);
     }
-
-    nix::Strings rmRootCmd = {"rm", rootPath};
-    sshMaster.startCommand(std::move(rmRootCmd));
 
     // XXX: Should be done as part of `copyPaths`
     for (auto & realisation : missingRealisations) {

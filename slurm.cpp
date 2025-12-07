@@ -17,7 +17,7 @@ using namespace nlohmann;
 #include <nix/store/store-open.hh>
 #include <nix/store/store-api.hh>
 
-static std::shared_ptr<RestClient::Connection> slurmGetConn()
+static std::shared_ptr<RestClient::Connection> getConn()
 {
     static bool init = false;
     static std::shared_ptr<RestClient::Connection> conn;
@@ -34,7 +34,7 @@ static std::shared_ptr<RestClient::Connection> slurmGetConn()
     return conn;
 }
 
-std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath, std::string rootPath, std::string jobStderr)
+static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPath, std::string rootPath, std::string jobStderr)
 {
     json req = {
         {"job", {
@@ -42,7 +42,7 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
             {"name", "Nix Build - " + std::string(drvPath.to_string())},
             {"current_working_directory", "/tmp"},
             {"environment", {"PATH=/usr/local/bin:/usr/bin:/bin:/nix/var/nix/profiles/default/bin"}},
-            {"script", nix::fmt("#!/bin/bash\nwhile [ ! -e /nix/store/%s ]; do sleep 0.1; done; nix-store --realise /nix/store/%s --add-root %s --quiet; echo '@nsh done' >&2",
+            {"script", nix::fmt("#!/bin/bash\nwhile [ ! -e /nix/store/%s ]; do sleep 0.1; done; nix-store --realise /nix/store/%s --add-root %s --quiet; rc=$?; echo '@nsh done' >&2; exit $rc",
                 std::string(drvPath.to_string()), std::string(drvPath.to_string()), rootPath)},
             {"standard_error", jobStderr},
         }}
@@ -55,7 +55,7 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
         }
     }
 
-    auto conn = slurmGetConn();
+    auto conn = getConn();
     RestClient::Response r = conn->post("/slurm/v0.0.43/job/submit", req.dump());
     if (r.body == "Authentication failure") {
         throw SlurmAuthenticationError(r.body);
@@ -92,32 +92,74 @@ std::pair<std::string, std::string> slurmBuildDerivation(nix::StorePath drvPath,
     return {batchHost, jobId};
 }
 
-std::string slurmGetJobState(std::string jobId)
+static bool isRunning(std::string state)
+{
+    return (state == "PENDING" || state == "RUNNING");
+}
+
+static std::string getJobState(std::string jobId)
 {
     auto sleepTime = 50ms;
     while (true) {
-        RestClient::Response qr = slurmGetConn()->get("/slurm/v0.0.43/job/" + jobId);
+        RestClient::Response qr = getConn()->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
         if (qresp["jobs"].size() == 1) {
             return qresp["jobs"][0]["job_state"][0];
         } else {
             std::this_thread::sleep_for(sleepTime);
-            sleepTime *= 2;
+            if (sleepTime < 2s) sleepTime *= 2;
         }
     }
 }
 
-uint32_t slurmGetJobReturnCode(std::string jobId)
+static uint32_t getJobReturnCode(std::string jobId)
 {
-    auto sleepTime = 50ms;
     while (true) {
-        RestClient::Response qr = slurmGetConn()->get("/slurm/v0.0.43/job/" + jobId);
+        RestClient::Response qr = getConn()->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
         if (qresp["jobs"].size() == 1 && qresp["jobs"][0]["exit_code"]["return_code"]["set"]) {
             return qresp["jobs"][0]["exit_code"]["return_code"]["number"];
         } else {
-            std::this_thread::sleep_for(sleepTime);
-            sleepTime *= 2;
+            std::this_thread::sleep_for(50ms);
         }
     }
+}
+
+std::string Slurm::submit(nix::StorePath drvPath)
+{
+    rootPath = "/tmp/job-" + std::string(drvPath.to_string()) + ".root";
+    jobStderr = "/tmp/job-" + std::string(drvPath.to_string()) + ".stderr";
+
+    auto r = buildDerivation(drvPath, rootPath, jobStderr);
+    hostname = r.first;
+    jobId = r.second;
+
+    return hostname;
+}
+
+int Slurm::waitForJobFinish()
+{
+    auto sleepTime = 50ms;
+    while (true) {
+        auto state = getJobState(jobId);
+        if (!isRunning(state)) {
+            if (state != "COMPLETED" && state != "FAILED")
+                return -1;
+            else
+                return getJobReturnCode(jobId);
+        } else {
+            std::this_thread::sleep_for(sleepTime);
+            if (sleepTime < 4s) sleepTime *= 2;
+        }
+    }
+}
+
+Slurm::~Slurm()
+{
+    if (isRunning(getJobState(jobId))) {
+        getConn()->del("/slurm/v0.0.43/job/" + jobId);
+    }
+
+    nix::Strings rmRootCmd = {"rm", rootPath};
+    sshMaster->startCommand(std::move(rmRootCmd));
 }
