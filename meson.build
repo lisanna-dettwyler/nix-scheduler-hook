@@ -32,7 +32,7 @@ nix_main = declare_dependency(include_directories: nix_main_headers, link_with: 
 
 sources = files(
     'main.cpp',
-    'settings.cc',
+    'settings.cpp',
     'slurm.cpp',
 )
 
