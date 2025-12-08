@@ -62,7 +62,7 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
     }
     json response = json::parse(r.body);
     if (response["errors"].size() > 0) {
-        throw SlurmSubmitError(nix::fmt("%s (%d): %s",
+        throw SlurmAPIError(nix::fmt("%s (%d): %s",
             response["errors"][0]["description"],
             response["errors"][0]["error_number"],
             response["errors"][0]["error"]));
@@ -76,7 +76,12 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
     while (!foundBatchHost) {
         RestClient::Response qr = conn->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
-        if (
+        if (qresp["errors"].size() > 0) {
+            throw SlurmAPIError(nix::fmt("%s (%d): %s",
+                qresp["errors"][0]["description"],
+                qresp["errors"][0]["error_number"],
+                qresp["errors"][0]["error"]));
+        } else if (
             qresp["jobs"].size() == 1 &&
             qresp["jobs"][0].contains("batch_host") &&
             qresp["jobs"][0]["batch_host"] != ""
@@ -103,7 +108,12 @@ static std::string getJobState(std::string jobId)
     while (true) {
         RestClient::Response qr = getConn()->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
-        if (qresp["jobs"].size() == 1) {
+        if (qresp["errors"].size() > 0) {
+            throw SlurmAPIError(nix::fmt("%s (%d): %s",
+                qresp["errors"][0]["description"],
+                qresp["errors"][0]["error_number"],
+                qresp["errors"][0]["error"]));
+        } else if (qresp["jobs"].size() == 1) {
             return qresp["jobs"][0]["job_state"][0];
         } else {
             std::this_thread::sleep_for(sleepTime);
@@ -117,7 +127,12 @@ static uint32_t getJobReturnCode(std::string jobId)
     while (true) {
         RestClient::Response qr = getConn()->get("/slurm/v0.0.43/job/" + jobId);
         json qresp = json::parse(qr.body);
-        if (qresp["jobs"].size() == 1 && qresp["jobs"][0]["exit_code"]["return_code"]["set"]) {
+        if (qresp["errors"].size() > 0) {
+            throw SlurmAPIError(nix::fmt("%s (%d): %s",
+                qresp["errors"][0]["description"],
+                qresp["errors"][0]["error_number"],
+                qresp["errors"][0]["error"]));
+        } else if (qresp["jobs"].size() == 1 && qresp["jobs"][0]["exit_code"]["return_code"]["set"]) {
             return qresp["jobs"][0]["exit_code"]["return_code"]["number"];
         } else {
             std::this_thread::sleep_for(50ms);

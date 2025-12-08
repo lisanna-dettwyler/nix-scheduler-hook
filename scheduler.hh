@@ -15,9 +15,9 @@ class Scheduler
 public:
     Scheduler() {}
 
-    struct SubmitNotCalled : public std::runtime_error
+    struct StartBuildNotCalled : public std::runtime_error
     {
-        explicit SubmitNotCalled() : std::runtime_error("submit() has not yet been called.") {}
+        explicit StartBuildNotCalled() : std::runtime_error("startBuild() has not yet been called.") {}
     };
     
     /* Submits a derivation for building and establishes an ssh connection to
@@ -55,7 +55,7 @@ public:
 
     std::shared_ptr<std::istream> getStderrStream()
     {
-        if (!submitCalled) throw SubmitNotCalled();
+        if (!submitCalled) throw StartBuildNotCalled();
         if (!cmdOutInit) {
             nix::Strings tailCmd = {"tail", "-f", jobStderr};
             cmdConn = sshMaster->startCommand(std::move(tailCmd));

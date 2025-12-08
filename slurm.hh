@@ -14,9 +14,9 @@ struct SlurmAuthenticationError : public std::runtime_error
     explicit SlurmAuthenticationError(const std::string &s) : std::runtime_error(s) {}
 };
 
-struct SlurmSubmitError : public std::runtime_error
+struct SlurmAPIError : public std::runtime_error
 {
-    explicit SlurmSubmitError(const std::string &s) : std::runtime_error(s) {}
+    explicit SlurmAPIError(const std::string &s) : std::runtime_error(s) {}
 };
 
 class Slurm : public Scheduler

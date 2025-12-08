@@ -230,7 +230,14 @@ int main(int argc, char **argv)
         }
     });
 
-    int rc = scheduler->waitForJobFinish();
+    int rc;
+    try {
+        rc = scheduler->waitForJobFinish();
+    } catch (std::exception & e) {
+        using namespace nix;
+        printError("Error while waiting for job %s termination", scheduler->getJobId());
+        return 1;
+    }
     if (rc == -1) {
         using namespace nix;
         printError("Job %s abnormally terminated.", scheduler->getJobId());
