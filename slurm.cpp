@@ -97,7 +97,7 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
     return {batchHost, jobId};
 }
 
-static bool isRunning(std::string state)
+static bool isLive(std::string state)
 {
     return (state == "PENDING" || state == "RUNNING");
 }
@@ -157,7 +157,7 @@ int Slurm::waitForJobFinish()
     auto sleepTime = 50ms;
     while (true) {
         auto state = getJobState(jobId);
-        if (!isRunning(state)) {
+        if (!isLive(state)) {
             if (state != "COMPLETED" && state != "FAILED")
                 return -1;
             else
@@ -171,7 +171,7 @@ int Slurm::waitForJobFinish()
 
 Slurm::~Slurm()
 {
-    if (isRunning(getJobState(jobId))) {
+    if (isLive(getJobState(jobId))) {
         getConn()->del("/slurm/v0.0.43/job/" + jobId);
     }
 
