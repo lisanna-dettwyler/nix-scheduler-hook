@@ -14,7 +14,7 @@ Currently, only Slurm is supported through its [REST API](https://slurm.schedmd.
 - `slurm-api-host`: Hostname or address of the Slurm REST API endpoint. Default: `localhost`.
 - `slurm-api-port`: Port to use for the Slurm REST API endpoint. Default: `6820`.
 - `slurm-jwt-token`: JWT token for authentication to the Slurm REST API.
-- `slurm-extra-submission-params`: Extra parameters to set in the `/job/submit` API request, as a JSON dictionary that will be merged with the 'job' value.
+- `slurm-extra-submission-params`: Extra parameters to set in the `/job/submit` API request, as a JSON dictionary that will be merged with the 'job' value in the [`job_submit_req`](https://slurm.schedmd.com/rest_api.html#v0.0.44_job_submit_req) object.
 
 ## Installation
 
