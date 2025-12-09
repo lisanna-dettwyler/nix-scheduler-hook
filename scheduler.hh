@@ -14,6 +14,7 @@ class Scheduler
 {
 public:
     Scheduler() {}
+    virtual ~Scheduler() {}
 
     struct StartBuildNotCalled : public std::runtime_error
     {

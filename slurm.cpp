@@ -10,6 +10,7 @@
 using namespace std::chrono_literals;
 #include <atomic>
 #include <fcntl.h>
+#include <array>
 
 #include <nlohmann/json.hpp>
 using namespace nlohmann;
@@ -175,6 +176,11 @@ Slurm::~Slurm()
         getConn()->del("/slurm/v0.0.43/job/" + jobId);
     }
 
-    nix::Strings rmRootCmd = {"rm", rootPath};
-    sshMaster->startCommand(std::move(rmRootCmd));
+    for (auto & file : std::array<std::string, 2>{rootPath, jobStderr}) {
+        nix::Strings rmCmd = {"rm", "-v", file};
+        auto cmd = sshMaster->startCommand(std::move(rmCmd));
+        auto cmdBuf = __gnu_cxx::stdio_filebuf<char>(cmd->out.release(), std::ios::in);
+        auto cmdStream = std::istream(&cmdBuf);
+        cmdStream.get();
+    }
 }
