@@ -46,6 +46,6 @@ stdenv.mkDerivation {
 
   installPhase = ''
     mkdir -p $out/bin
-    mv demo $out/bin
+    mv nsh $out/bin
   '';
 }
