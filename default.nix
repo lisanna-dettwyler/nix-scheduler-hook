@@ -1,25 +1,25 @@
 { pkgs, nlohmann-json, restclient-cpp }:
 with pkgs;
-ccacheStdenv.mkDerivation {
+stdenv.mkDerivation {
   name = "nix-scheduler-hook";
   src = ./.;
   nativeBuildInputs = [
     meson
     cmake
     ninja
+    boost
+    pkg-config
+    nlohmann_json
+    curl
     rapidjson
     gtest
-    boost
     openssl
     zlib
-    pkg-config
     libblake3
     libarchive
     libsodium
     brotli
     libcpuid
-    nlohmann_json
-    curl
     libseccomp
     sqlite
     libgit2
