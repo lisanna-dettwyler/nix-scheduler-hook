@@ -15,22 +15,6 @@
         "type": "github"
       }
     },
-    "nlohmann-json": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1762973567,
-        "narHash": "sha256-0SopAk6HNH7qqn0g3bbxd74QFC0YPQEgJ3XpD9dRUPM=",
-        "owner": "nlohmann",
-        "repo": "json",
-        "rev": "49026f799983840d7cf1a8109ffffe7eb4b1012c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nlohmann",
-        "repo": "json",
-        "type": "github"
-      }
-    },
     "restclient-cpp": {
       "flake": false,
       "locked": {
@@ -50,7 +34,6 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "nlohmann-json": "nlohmann-json",
         "restclient-cpp": "restclient-cpp"
       }
     }

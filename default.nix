@@ -1,4 +1,4 @@
-{ pkgs, nlohmann-json, restclient-cpp }:
+{ pkgs, restclient-cpp }:
 with pkgs;
 stdenv.mkDerivation {
   name = "nix-scheduler-hook";
@@ -22,7 +22,6 @@ stdenv.mkDerivation {
   postUnpack = ''
     mkdir $sourceRoot/subprojects
     cp -r ${restclient-cpp} $sourceRoot/subprojects/restclient-cpp
-    cp -r ${nlohmann-json} $sourceRoot/subprojects/nlohmann-json
   '';
 
   installPhase = ''

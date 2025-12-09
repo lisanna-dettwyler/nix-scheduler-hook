@@ -5,14 +5,10 @@ project(
 )
 cmake = import('cmake')
 
-# restcpp_proj = cmake.subproject('restc-cpp')
-# restcpp = restcpp_proj.dependency('restc-cpp')
-
 rectclient_proj = cmake.subproject('restclient-cpp')
 restclient_dep = rectclient_proj.dependency('restclient-cpp')
 
-json_proj = subproject('nlohmann-json')
-json_dep = json_proj.get_variable('nlohmann_json_dep')
+json_dep = dependency('nlohmann_json')
 
 boost_dep = dependency('boost', modules : ['fusion'])
 

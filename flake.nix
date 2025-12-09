@@ -3,10 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
-    nlohmann-json = {
-      url = "github:nlohmann/json";
-      flake = false;
-    };
     restclient-cpp = {
       url = "github:mrtazz/restclient-cpp";
       flake = false;
@@ -20,7 +16,6 @@
     packages.x86_64-linux.default = packages.x86_64-linux.nix-scheduler-hook;
     packages.x86_64-linux.nix-scheduler-hook = import ./default.nix {
       pkgs = pkgs;
-      nlohmann-json = inputs.nlohmann-json;
       restclient-cpp = inputs.restclient-cpp;
     };
   };
