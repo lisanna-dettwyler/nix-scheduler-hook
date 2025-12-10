@@ -17,6 +17,7 @@ using namespace nlohmann;
 
 #include <nix/store/store-open.hh>
 #include <nix/store/store-api.hh>
+#include <nix/store/derivations.hh>
 
 static std::shared_ptr<RestClient::Connection> getConn()
 {
@@ -48,6 +49,15 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
             {"standard_error", jobStderr},
         }}
     };
+
+    auto store = nix::openStore();
+    auto drv = store->readDerivation(drvPath);
+    if (drv.env.count("extraSlurmParams") == 1) {
+        json extraParams = json::parse(drv.env["extraSlurmParams"]);
+        for (auto & [key, value] : extraParams.items()) {
+            req["job"][key] = value;
+        }
+    }
 
     if (ourSettings.slurmExtraJobSubmissionParams.get() != "") {
         json extraParams = json::parse(ourSettings.slurmExtraJobSubmissionParams.get());
