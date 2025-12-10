@@ -5,10 +5,6 @@ using namespace std::chrono_literals;
 #include <memory>
 #include <ext/stdio_filebuf.h>
 
-// #include <restc-cpp/restc-cpp.h>
-// #include <restc-cpp/RequestBuilder.h>
-// using namespace restc_cpp;
-
 #include <nix/main/shared.hh>
 #include <nix/main/plugin.hh>
 #include <nix/util/fmt.hh>
