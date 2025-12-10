@@ -29,7 +29,9 @@ runCommand "myjob" {
       number = 1024;
     };
   };
-}
+} ''
+echo "Hello Slurm!"
+''
 ```
 
 ## Installation
