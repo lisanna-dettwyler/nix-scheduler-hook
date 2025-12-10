@@ -19,3 +19,7 @@ Currently, only Slurm is supported through its [REST API](https://slurm.schedmd.
 ## Installation
 
 After building from source, edit your `nix.conf` and set `build-hook = /path/to/nsh`. NSH is currently not available in nixpkgs or as a NixOS module, but this should be remedied soon.
+
+## Known Limitations
+
+Because of https://github.com/NixOS/nix/issues/14760, it is impossible for NSH to cleanup any outstanding jobs if the build gets manually cancelled, e.g. with ctrl-c. It is therefore currently the responsibility of the user to cleanup all the jobs NSH submits to the scheduler on their behalf if they cancel a build.
