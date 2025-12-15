@@ -208,6 +208,8 @@ int main(int argc, char **argv)
     }
 
     uploadLock = -1;
+
+    std::atomic<bool> cmdAbend = false;
     
     std::thread cmdOutThread([&]() {
         auto cmdOutIs = scheduler->getStderrStream();
@@ -218,7 +220,7 @@ int main(int argc, char **argv)
         std::ostream logOs(&logBuf);
 
         bool gotTerminator = false;
-        while (!gotTerminator) {
+        while (!gotTerminator && !cmdAbend) {
             std::string data;
             char c;
             while (cmdOutIs->get(c)) {
@@ -229,6 +231,17 @@ int main(int argc, char **argv)
             } else {
                 std::this_thread::yield();
                 cmdOutIs->clear();
+            }
+        }
+        if (cmdAbend) {
+            // Drain in the case of abnormal termination
+            std::string data;
+            char c;
+            while (cmdOutIs->get(c)) {
+                data += c;
+            }
+            if (data != "") {
+                handleOutput(logOs, data);
             }
         }
     });
@@ -244,6 +257,8 @@ int main(int argc, char **argv)
     if (rc == -1) {
         using namespace nix;
         printError("NSH Error: job %s abnormally terminated.", scheduler->getJobId());
+        cmdAbend = true;
+        cmdOutThread.join();
         return 1;
     } else if (rc) {
         // Build failed, so no more work to do
