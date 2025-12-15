@@ -114,7 +114,7 @@ int main(int argc, char **argv)
         scheduler = std::make_unique<Slurm>();
     } else {
         using namespace nix;
-        printError("unsupported job scheduler %s", ourSettings.jobScheduler.get());
+        printError("NSH Error: unsupported job scheduler %s", ourSettings.jobScheduler.get());
         std::cerr << "# decline-permanently\n";
         return 0;
     }
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
         host = scheduler->startBuild(drvPath);
     } catch (std::exception & e) {
         using namespace nix;
-        printError("Error when attempting to build derivation on %s: %s", ourSettings.jobScheduler.get(), e.what());
+        printError("NSH Error: error when attempting to build derivation on %s: %s", ourSettings.jobScheduler.get(), e.what());
         std::cerr << "# decline-permanently\n";
         return 0;
     }
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
     } catch (std::exception & e) {
         auto msg = nix::chomp(nix::drainFD(5, false));
         using namespace nix;
-        printError("cannot build on '%s': %s%s", storeUri, e.what(), msg.empty() ? "" : ": " + msg);
+        printError("NSH Error: cannot build on '%s': %s%s", storeUri, e.what(), msg.empty() ? "" : ": " + msg);
         std::cerr << "# decline\n";
         return 0;
     }
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
         alarm(15 * 60);
         if (!nix::lockFile(uploadLock.get(), nix::LockType::ltWrite, true)) {
             using namespace nix;
-            printError("somebody is hogging the upload lock for '%s', continuing...");
+            printError("NSH Error: somebody is hogging the upload lock for '%s', continuing...");
         }
         alarm(0);
         signal(SIGALRM, old);
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
             nix::copyPaths(*store, *sshStore, store->parseStorePathSet(inputs), nix::NoRepair, nix::NoCheckSigs, substitute);
         } catch (std::exception & e) {
             using namespace nix;
-            printError("Error when attempting to copy build dependencies: %s", e.what());
+            printError("NSH Error: error when attempting to copy build dependencies: %s", e.what());
             std::cerr << "# decline-permanently\n";
             return 0;
         }
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
             nix::copyClosure(*store, *sshStore, store->parseStorePathSet(rootDrv), nix::NoRepair, nix::NoCheckSigs, substitute);
         } catch (std::exception & e) {
             using namespace nix;
-            printError("Error when attempting to copy root derivation closure: %s", e.what());
+            printError("NSH Error: error when attempting to copy root derivation closure: %s", e.what());
             std::cerr << "# decline-permanently\n";
             return 0;
         }
@@ -238,12 +238,12 @@ int main(int argc, char **argv)
         rc = scheduler->waitForJobFinish();
     } catch (std::exception & e) {
         using namespace nix;
-        printError("Error while waiting for job %s termination", scheduler->getJobId());
+        printError("NSH Error: error while waiting for job %s termination", scheduler->getJobId());
         return 1;
     }
     if (rc == -1) {
         using namespace nix;
-        printError("Job %s abnormally terminated.", scheduler->getJobId());
+        printError("NSH Error: job %s abnormally terminated.", scheduler->getJobId());
         return 1;
     } else if (rc) {
         // Build failed, so no more work to do
