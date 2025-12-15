@@ -84,6 +84,8 @@ int main(int argc, char **argv)
     // amWilling (unused)
     nix::readInt(source);
 
+    ::loadConfFile(ourSettings);
+
     auto neededSystem = nix::readString(source);
     if (neededSystem != ourSettings.system.get()) {
         std::cerr << "# decline\n";
@@ -99,8 +101,6 @@ int main(int argc, char **argv)
         std::cerr << "# decline\n";
         return 0;
     }
-
-    ::loadConfFile(ourSettings);
 
     std::unique_ptr<Scheduler> scheduler;
     if (ourSettings.jobScheduler.get() == "slurm") {
