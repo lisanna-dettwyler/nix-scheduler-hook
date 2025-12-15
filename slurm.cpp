@@ -153,9 +153,6 @@ static uint32_t getJobReturnCode(std::string jobId)
 
 std::string Slurm::submit(nix::StorePath drvPath)
 {
-    rootPath = "/tmp/job-" + std::string(drvPath.to_string()) + ".root";
-    jobStderr = "/tmp/job-" + std::string(drvPath.to_string()) + ".stderr";
-
     auto r = buildDerivation(drvPath, rootPath, jobStderr);
     hostname = r.first;
     jobId = r.second;

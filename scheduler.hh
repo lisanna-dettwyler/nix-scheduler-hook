@@ -10,6 +10,8 @@
 #include <nix/util/types.hh>
 #include <nix/util/logging.hh>
 
+#include "settings.hh"
+
 class Scheduler
 {
 public:
@@ -24,12 +26,15 @@ public:
     /* Submits a derivation for building and establishes an ssh connection to
      * the scheduled host.
      * @return Hostname of the node assigned to the job. */
-   std::string startBuild(nix::StorePath drvPath)
-   {
-       hostname = submit(drvPath);
-       storeUri = "ssh-ng://" + hostname;
-       {
-           nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
+    std::string startBuild(nix::StorePath drvPath)
+    {
+        rootPath = "/run/user/" + ourSettings.uid.get() + "/nsh/job-" + std::string(drvPath.to_string()) + ".root";
+        jobStderr = "/run/user/" + ourSettings.uid.get() + "/nsh/job-" + std::string(drvPath.to_string()) + ".stderr";
+
+        hostname = submit(drvPath);
+        storeUri = "ssh-ng://" + hostname;
+        {
+            nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
         }
         auto baseStoreConfig = nix::resolveStoreConfig(nix::StoreReference::parse(storeUri));
         auto sshStoreConfig = std::dynamic_pointer_cast<nix::SSHStoreConfig>(baseStoreConfig.get_ptr());

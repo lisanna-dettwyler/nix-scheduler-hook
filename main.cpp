@@ -102,6 +102,13 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    if (ourSettings.uid.get() == "") {
+        using namespace nix;
+        printError("NSH Error: uid setting not configured");
+        std::cerr << "# decline-permanently\n";
+        return 0;
+    }
+
     std::unique_ptr<Scheduler> scheduler;
     if (ourSettings.jobScheduler.get() == "slurm") {
         scheduler = std::make_unique<Slurm>();

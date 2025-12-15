@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 
 #include <nix/util/configuration.hh>
@@ -15,6 +17,13 @@ struct Settings : public nix::Config
         "slurm",
         "job-scheduler",
         "Which job scheduler to use, currently only 'slurm' is available."
+    };
+
+    nix::Setting <std::string> uid {
+        this,
+        "",
+        "uid",
+        "The UID of your account on the cluster. Tempfiles will be stored in /run/user/<uid>/nsh/."
     };
 
     nix::Setting <std::string> system {
