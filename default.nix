@@ -7,16 +7,16 @@ stdenv.mkDerivation {
     meson
     cmake
     ninja
-    boost
-    pkg-config
-    nlohmann_json
-    curl
+    pkg-config  
   ];
 
   buildInputs = [
+    boost
+    curl
     nix.libs.nix-util
     nix.libs.nix-store
     nix.libs.nix-main
+    nlohmann_json
   ];
 
   postUnpack = ''
