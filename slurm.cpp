@@ -44,8 +44,13 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
             {"name", "Nix Build - " + std::string(drvPath.to_string())},
             {"current_working_directory", "/tmp"},
             {"environment", {"PATH=/usr/local/bin:/usr/bin:/bin:/nix/var/nix/profiles/default/bin"}},
-            {"script", nix::fmt("#!/bin/bash\nwhile [ ! -e /nix/store/%s ]; do sleep 0.1; done; nix-store --realise /nix/store/%s --add-root %s --quiet; rc=$?; echo '@nsh done' >&2; exit $rc",
-                std::string(drvPath.to_string()), std::string(drvPath.to_string()), rootPath)},
+            {"script", nix::fmt("#!/bin/bash\nwhile ! nix-store --store '%s' --query --hash %s/%s >/dev/null 2>&1; do sleep 0.1; done; nix-store --store '%s' --realise %s/%s --add-root %s --quiet; rc=$?; echo '@nsh done' >&2; exit $rc",
+                ourSettings.remoteStore.get(),
+                ourSettings.storeDir.get(), std::string(drvPath.to_string()),
+                ourSettings.remoteStore.get(),
+                ourSettings.storeDir.get(), std::string(drvPath.to_string()),
+                rootPath
+            )},
             {"standard_error", jobStderr},
         }}
     };

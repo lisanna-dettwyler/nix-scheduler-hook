@@ -7,6 +7,9 @@ General settings:
 - `job-scheduler`: Which job scheduler to use, currently only 'slurm' is available. Default: `slurm`.
 - `uid` (required): The UID of your account on the cluster. Tempfiles will be stored in `/run/user/<uid>/nsh/`.
 - `system`: The system type of this cluster, jobs requiring a different system will not be routed to the scheduler. Default: `x86_64-linux`.
+- `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
+- `remote-store`: The store URL to be used on the remote machine. See: [https://nix.dev/manual/nix/latest/store/types/](https://nix.dev/manual/nix/latest/store/types/). Default: `auto`.
+
 
 ## Supported Job Schedulers
 

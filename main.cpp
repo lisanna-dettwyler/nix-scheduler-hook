@@ -139,7 +139,8 @@ int main(int argc, char **argv)
     
     std::shared_ptr<nix::Store> sshStore;
     try {
-        sshStore = nix::openStore(storeUri);
+        nix::StoreReference::Params params = {{"remote-store", ourSettings.remoteStore.get()}};
+        sshStore = nix::openStore(storeUri, params);
         sshStore->connect();
     } catch (std::exception & e) {
         auto msg = nix::chomp(nix::drainFD(5, false));

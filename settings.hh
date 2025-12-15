@@ -33,6 +33,20 @@ struct Settings : public nix::Config
         "The system type of this cluster, jobs requiring a different system will not be routed to the scheduler."
     };
 
+    nix::Setting<std::string> storeDir {
+        this,
+        "/nix/store",
+        "store-dir",
+        "The logical remote Nix store directory. Only change this if you know what you're doing."
+    };
+
+    nix::Setting<std::string> remoteStore {
+        this,
+        "auto",
+        "remote-store",
+        "The store URL to be used on the remote machine. Should be set to 'auto' if using the nix-daemon."
+    };
+
     nix::Setting<std::string> slurmApiHost {
         this,
         "localhost",
