@@ -275,6 +275,8 @@ int main(int argc, char **argv)
         // Build failed, so no more work to do
         using namespace nix;
         printError("build failed with exit code %d", rc);
+        cmdAbend = true;
+        cmdOutThread.join();
         return rc;
     }
 
