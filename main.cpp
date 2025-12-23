@@ -160,6 +160,8 @@ int main(int argc, char **argv)
     auto inputs = nix::readStrings<nix::PathSet>(source);
     auto wantedOutputs = nix::readStrings<nix::StringSet>(source);
 
+    mkdir(currentLoad.c_str(), 0777);
+
     nix::AutoCloseFD uploadLock;
     {
         auto setUpdateLock = [&](auto && fileName) {
