@@ -142,10 +142,6 @@ int main(int argc, char **argv)
     {
         nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
     }
-    auto baseStoreConfig = nix::resolveStoreConfig(nix::StoreReference::parse(storeUri));
-    auto sshStoreConfig = std::dynamic_pointer_cast<nix::SSHStoreConfig>(baseStoreConfig.get_ptr());
-    auto sshMaster = sshStoreConfig->createSSHMaster(false);
-    
     std::shared_ptr<nix::Store> sshStore;
     try {
         nix::StoreReference::Params params = {{"remote-store", ourSettings.remoteStore.get()}};
