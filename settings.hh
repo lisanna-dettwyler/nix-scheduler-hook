@@ -33,6 +33,13 @@ struct Settings : public nix::Config
         "The system type of this cluster, jobs requiring a different system will not be routed to the scheduler."
     };
 
+    nix::Setting<nix::StringSet> systemFeatures {
+        this,
+        {"nsh"},
+        "system-features",
+        "Optional system features supported by the machines in the cluster. The default value is 'nsh'. Can be used to force derivations to build only via nix-scheduler-hook by adding 'nsh' as a required system feature."
+    };
+
     nix::Setting<std::string> storeDir {
         this,
         "/nix/store",

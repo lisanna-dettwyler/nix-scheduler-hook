@@ -94,12 +94,13 @@ int main(int argc, char **argv)
 
     nix::StorePath drvPath = store->parseStorePath(readString(source));
 
-    // If special features are required, assume the cluster does not have them
-    // TODO: add a setting to specify supportedFeatures and mandatoryFeatures
     auto requiredFeatures = nix::readStrings<nix::StringSet>(source);
-    if (!requiredFeatures.empty()) {
-        std::cerr << "# decline\n";
-        return 0;
+    auto systemFeatures = ourSettings.systemFeatures.get();
+    for (auto & feature : requiredFeatures) {
+        if (systemFeatures.find(feature) == systemFeatures.end()) {
+            std::cerr << "# decline\n";
+            return 0;
+        }
     }
 
     if (ourSettings.uid.get() == "") {
