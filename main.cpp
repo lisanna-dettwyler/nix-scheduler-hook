@@ -88,6 +88,8 @@ int main(int argc, char **argv)
 
     auto neededSystem = nix::readString(source);
     if (neededSystem != ourSettings.system.get()) {
+        using namespace nix;
+        printError("needed system %s does not match our system %s", neededSystem, ourSettings.system.get());
         std::cerr << "# decline\n";
         return 0;
     }
@@ -98,6 +100,11 @@ int main(int argc, char **argv)
     auto systemFeatures = ourSettings.systemFeatures.get();
     for (auto & feature : requiredFeatures) {
         if (systemFeatures.find(feature) == systemFeatures.end()) {
+            using namespace nix;
+            printError("required feature %s not available, available features:", feature);
+            for (auto & f : systemFeatures) {
+                printError(f);
+            }
             std::cerr << "# decline\n";
             return 0;
         }
@@ -123,6 +130,7 @@ int main(int argc, char **argv)
     std::string host;
     try {
         host = scheduler->startBuild(drvPath);
+        nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("started job %d", scheduler->getJobId()));
     } catch (std::exception & e) {
         using namespace nix;
         printError("NSH Error: error when attempting to build derivation on %s: %s", ourSettings.jobScheduler.get(), e.what());
@@ -164,8 +172,11 @@ int main(int argc, char **argv)
         try {
             setUpdateLock(storeUri);
         } catch (nix::SysError & e) {
-            if (e.errNo != ENAMETOOLONG)
+            if (e.errNo != ENAMETOOLONG) {
+                using namespace nix;
+                printError(e.what());
                 throw;
+            }
             // Try again hashing the store URL so we have a shorter path
             auto h = nix::hashString(nix::HashAlgorithm::MD5, storeUri);
             setUpdateLock(h.to_string(nix::HashFormat::Base64, false));
@@ -264,6 +275,8 @@ int main(int argc, char **argv)
         return 1;
     } else if (rc) {
         // Build failed, so no more work to do
+        using namespace nix;
+        printError("build failed with exit code %d", rc);
         return rc;
     }
 
