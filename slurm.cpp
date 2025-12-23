@@ -12,6 +12,8 @@ using namespace std::chrono_literals;
 #include <fcntl.h>
 #include <array>
 
+#include <boost/algorithm/string/join.hpp>
+
 #include <nlohmann/json.hpp>
 using namespace nlohmann;
 
@@ -44,11 +46,12 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
             {"name", "Nix Build - " + std::string(drvPath.to_string())},
             {"current_working_directory", "/tmp"},
             {"environment", {"PATH=/run/current-system/sw/bin/:/usr/local/bin:/usr/bin:/bin:/nix/var/nix/profiles/default/bin"}},
-            {"script", nix::fmt("#!/bin/sh\nwhile ! nix-store --store '%s' --query --hash %s/%s >/dev/null 2>&1; do sleep 0.1; done; nix-store --store '%s' --realise %s/%s --add-root %s --quiet; rc=$?; echo '@nsh done' >&2; exit $rc",
+            {"script", nix::fmt("#!/bin/sh\nwhile ! nix-store --store '%s' --query --hash %s/%s >/dev/null 2>&1; do sleep 0.1; done; nix-store --store '%s' --realise %s/%s --option system-features '%s' --add-root %s --quiet; rc=$?; echo '@nsh done' >&2; exit $rc",
                 ourSettings.remoteStore.get(),
                 ourSettings.storeDir.get(), std::string(drvPath.to_string()),
                 ourSettings.remoteStore.get(),
                 ourSettings.storeDir.get(), std::string(drvPath.to_string()),
+                boost::algorithm::join(ourSettings.systemFeatures.get(), " "),
                 rootPath
             )},
             {"standard_error", jobStderr},
