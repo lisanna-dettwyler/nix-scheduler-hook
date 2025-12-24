@@ -19,11 +19,11 @@ struct Settings : public nix::Config
         "Which job scheduler to use, currently only 'slurm' is available."
     };
 
-    nix::Setting <std::string> uid {
+    nix::Setting <std::string> stateDir {
         this,
         "",
-        "uid",
-        "The UID of your account on the cluster. Tempfiles will be stored in /run/user/<uid>/nsh/."
+        "state-dir",
+        "Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons."
     };
 
     nix::Setting <std::string> system {
