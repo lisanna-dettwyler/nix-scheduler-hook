@@ -110,9 +110,9 @@ int main(int argc, char **argv)
         }
     }
 
-    if (ourSettings.uid.get() == "") {
+    if (ourSettings.stateDir.get() == "") {
         using namespace nix;
-        printError("NSH Error: uid setting not configured");
+        printError("NSH Error: state-dir setting not configured");
         std::cerr << "# decline-permanently\n";
         return 0;
     }

@@ -28,8 +28,8 @@ public:
      * @return Hostname of the node assigned to the job. */
     std::string startBuild(nix::StorePath drvPath)
     {
-        rootPath = "/run/user/" + ourSettings.uid.get() + "/nsh/job-" + std::string(drvPath.to_string()) + ".root";
-        jobStderr = "/run/user/" + ourSettings.uid.get() + "/nsh/job-" + std::string(drvPath.to_string()) + ".stderr";
+        rootPath = ourSettings.stateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
+        jobStderr = ourSettings.stateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
 
         hostname = submit(drvPath);
         storeUri = "ssh-ng://" + hostname;
