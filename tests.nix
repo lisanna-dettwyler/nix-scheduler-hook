@@ -87,9 +87,6 @@ in
           { ... }:
           {
             imports = [ slurmconfig ];
-            nix.extraOptions = ''
-              build-hook = ${nix-scheduler-hook}/bin/nsh
-            '';
             services.slurm.enableStools = true;
             services.slurm.rest.enable = true;
             # services.slurm.rest.debug = "debug";
