@@ -95,7 +95,7 @@ in
               ];
             };
           };
-        
+
         submit =
           { ... }:
           {
@@ -109,7 +109,7 @@ in
         node2 = computeNode;
         node3 = computeNode;
       };
-    
+
     testScript = ''
       with subtest("can_start_slurmdbd"):
           dbd.wait_for_unit("slurmdbd.service")
