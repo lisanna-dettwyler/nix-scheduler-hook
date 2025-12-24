@@ -4,8 +4,8 @@ let
   slurmconfig = {
     services.slurm = {
       controlMachine = "control";
-      nodeName = [ "node CPUs=1 State=UNKNOWN" ];
-      partitionName = [ "debug Nodes=node Default=YES MaxTime=INFINITE State=UP" ];
+      nodeName = [ "node[1-3] CPUs=1 State=UNKNOWN" ];
+      partitionName = [ "debug Nodes=node[1-3] Default=YES MaxTime=INFINITE State=UP" ];
       extraConfig = ''
         AccountingStorageHost=dbd
         AccountingStorageType=accounting_storage/slurmdbd
@@ -92,7 +92,9 @@ in
             # services.slurm.rest.debug = "debug";
           };
 
-        node = computeNode;
+        node1 = computeNode;
+        node2 = computeNode;
+        node3 = computeNode;
       };
     
     testScript = ''
@@ -108,7 +110,8 @@ in
       start_all()
 
       with subtest("can_start_slurmd"):
-          node.wait_for_unit("slurmd")
+          for node in [node1, node2, node3]:
+              node.wait_for_unit("slurmd")
 
       submit.wait_for_unit("multi-user.target")
 
@@ -123,7 +126,7 @@ in
           submit.succeed("echo 'state-dir = /root/nsh' > /etc/nix/nsh.conf")
           submit.succeed("echo 'slurm-jwt-token = %s' >> /etc/nix/nsh.conf" % token)
 
-      build_derivation = """
+      build_derivation_simple = """
         nix-build \
           --option build-hook ${nix-scheduler-hook}/bin/nsh \
           --option substitute false \
@@ -140,12 +143,32 @@ in
       submit.succeed("mkdir -p ~/.ssh")
       submit.succeed("cat ${snakeOilPrivateKey} > ~/.ssh/privkey.snakeoil")
       submit.succeed("chmod 600 ~/.ssh/privkey.snakeoil")
-      submit.succeed("echo 'Host node' >> ~/.ssh/config")
+      submit.succeed("echo 'Host node*' >> ~/.ssh/config")
       submit.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
       submit.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
 
-      with subtest("run_nix_build"):
-          submit.succeed(build_derivation)
+      with subtest("run_nix_build_simple"):
+          submit.succeed(build_derivation_simple)
+
+      build_derivation_deps = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substitute false \
+          -E '
+            let
+              mkDrv = name: echo: derivation {
+                inherit name;
+                builder = "/bin/sh";
+                args = ["-c" "echo $${echo} > $out"];
+                system = builtins.currentSystem;
+                requiredSystemFeatures = ["nsh"];
+              };
+              dep = n: "dep$${n}";
+            in mkDrv "test" "$${mkDrv (dep 1) (dep 1)} $${mkDrv (dep 2) (dep 2)} $${mkDrv (dep 3) (dep 3)}"'
+      """
+
+      with subtest("run_nix_build_deps"):
+          submit.succeed(build_derivation_deps)
     '';
   };
 }
