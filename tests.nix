@@ -200,6 +200,23 @@ in
 
       with subtest("run_nix_build_negative_system_features"):
           submit.fail(build_derivation_unsupported_system_features)
+
+      build_derivation_unsupported_system = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substitute false \
+          -E '
+            derivation {
+              name = "test";
+              builder = "/bin/sh";
+              args = ["-c" "echo something > $out"];
+              system = "bogus-system";
+              requiredSystemFeatures = [ "nsh" ];
+            }'
+      """
+
+      with subtest("run_nix_build_negative_system"):
+          submit.fail(build_derivation_unsupported_system)
     '';
   };
 }
