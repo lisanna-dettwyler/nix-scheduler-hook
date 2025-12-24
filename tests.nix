@@ -223,6 +223,11 @@ in
           submit.succeed("echo 'job-scheduler = invalid' >> /etc/nix/nsh.conf")
           submit.fail(build_derivation_simple)
       submit.succeed("sed -i s/invalid/slurm/g /etc/nix/nsh.conf")
+
+      with subtest("run_nix_build_negative_ssh"):
+          submit.succeed("sed -i s/snakeoil/snake/g ~/.ssh/config")
+          submit.fail(build_derivation_simple)
+      submit.succeed("sed -i s/snake/snakeoil/g ~/.ssh/config")
     '';
   };
 }
