@@ -21,6 +21,19 @@ let
     snakeOilPrivateKey
     snakeOilPublicKey
     ;
+  guestSystem =
+    if stdenv.hostPlatform.isLinux then
+      stdenv.hostPlatform.system
+    else
+      let
+        hostToGuest = {
+          "x86_64-darwin" = "x86_64-linux";
+          "aarch64-darwin" = "aarch64-linux";
+        };
+        supportedHosts = lib.concatStringsSep ", " (lib.attrNames hostToGuest);
+        message = "NixOS Test: don't know which VM guest system to pair with VM host system: ${hostPlatform.system}. Perhaps you intended to run the tests on a Linux host, or one of the following systems that may run NixOS tests: ${supportedHosts}";
+      in
+      hostToGuest.${hostPlatform.system} or (throw message);
 in
 {
   slurmTests = testers.nixosTest {
@@ -125,6 +138,7 @@ in
           submit.succeed("mkdir -p /etc/nix")
           submit.succeed("echo 'state-dir = /root/nsh' > /etc/nix/nsh.conf")
           submit.succeed("echo 'slurm-jwt-token = %s' >> /etc/nix/nsh.conf" % token)
+          submit.succeed("echo 'system = %s' >> /etc/nix/nsh.conf" % "${guestSystem}")
 
       build_derivation_simple = """
         nix-build \
