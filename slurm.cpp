@@ -198,7 +198,7 @@ Slurm::~Slurm()
     }
 
     for (auto & file : std::array<std::string, 2>{rootPath, jobStderr}) {
-        nix::Strings rmCmd = {"rm", "-v", file};
+        nix::Strings rmCmd = {"bash", "-c", "rm -fv " + file + "; echo done"};
         auto cmd = sshMaster->startCommand(std::move(rmCmd));
         auto cmdBuf = __gnu_cxx::stdio_filebuf<char>(cmd->out.release(), std::ios::in);
         auto cmdStream = std::istream(&cmdBuf);
