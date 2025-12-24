@@ -151,6 +151,7 @@ in
               args = ["-c" "echo something > $out"];
               system = builtins.currentSystem;
               requiredSystemFeatures = [ "nsh" ];
+              REBUILD = builtins.currentTime;
             }'
       """
 
@@ -217,6 +218,11 @@ in
 
       with subtest("run_nix_build_negative_system"):
           submit.fail(build_derivation_unsupported_system)
+
+      with subtest("run_nix_build_invalid_scheduler"):
+          submit.succeed("echo 'job-scheduler = invalid' >> /etc/nix/nsh.conf")
+          submit.fail(build_derivation_simple)
+      submit.succeed("sed -i s/invalid/slurm/g /etc/nix/nsh.conf")
     '';
   };
 }
