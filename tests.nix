@@ -228,6 +228,11 @@ in
           submit.succeed("sed -i s/snakeoil/snake/g ~/.ssh/config")
           submit.fail(build_derivation_simple)
       submit.succeed("sed -i s/snake/snakeoil/g ~/.ssh/config")
+
+      with subtest("run_nix_build_custom_store"):
+          submit.succeed("echo 'remote-store = /store' >> /etc/nix/nsh.conf")
+          submit.succeed(build_derivation_simple)
+      submit.succeed("sed -i 's|/store|auto|g' /etc/nix/nsh.conf")
     '';
   };
 }
