@@ -2,8 +2,7 @@
   description = "A build hook for Nix that dispatches builds through a job scheduler.";
 
   inputs = {
-    # nixpkgs.url = "github:nixos/nixpkgs";
-    nixpkgs.url = "github:lisanna-dettwyler/nixpkgs/add-slurmrestd";
+    nixpkgs.url = "github:nixos/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
     restclient-cpp = {
       url = "github:mrtazz/restclient-cpp";
