@@ -1,13 +1,14 @@
-{ pkgs, restclient-cpp }:
+{ pkgs, restclient-cpp, openpbs }:
 with pkgs;
 stdenv.mkDerivation {
   name = "nix-scheduler-hook";
-  src = ./.;
+  src = ./src;
+
   nativeBuildInputs = [
     meson
     cmake
     ninja
-    pkg-config  
+    pkg-config
   ];
 
   buildInputs = [
@@ -17,6 +18,7 @@ stdenv.mkDerivation {
     nix.libs.nix-store
     nix.libs.nix-main
     nlohmann_json
+    openpbs
   ];
 
   postUnpack = ''

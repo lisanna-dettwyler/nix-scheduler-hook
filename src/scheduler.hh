@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <utility>
 #include <iostream>
@@ -22,15 +24,12 @@ public:
     {
         explicit StartBuildNotCalled() : std::runtime_error("startBuild() has not yet been called.") {}
     };
-    
+
     /* Submits a derivation for building and establishes an ssh connection to
      * the scheduled host.
      * @return Hostname of the node assigned to the job. */
     std::string startBuild(nix::StorePath drvPath)
     {
-        rootPath = ourSettings.stateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
-        jobStderr = ourSettings.stateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
-
         hostname = submit(drvPath);
         storeUri = "ssh-ng://" + hostname;
         {
@@ -41,7 +40,7 @@ public:
         // nix::SSHMaster does not permit assignment
         static auto ssh = sshStoreConfig->createSSHMaster(false);
         sshMaster = &ssh;
-        
+
         submitCalled = true;
         return hostname;
     }
@@ -49,7 +48,7 @@ public:
     /* Submits a derivation for building.
      * @return Hostname of the node assigned to the job. */
     virtual std::string submit(nix::StorePath drvPath) = 0;
-    
+
     /* Waits for the submitted job to finish.
      * @return Exit code of job, or -1 if abnormal termination (e.g. cancelled). */
     virtual int waitForJobFinish() = 0;

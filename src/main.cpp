@@ -27,6 +27,7 @@ using namespace std::chrono_literals;
 
 #include "settings.hh"
 #include "slurm.hh"
+#include "pbs.hh"
 #include "logging.hh"
 
 static void handleAlarm(int sig) {}
@@ -110,16 +111,11 @@ int main(int argc, char **argv)
         }
     }
 
-    if (ourSettings.stateDir.get() == "") {
-        using namespace nix;
-        printError("NSH Error: state-dir setting not configured");
-        std::cerr << "# decline-permanently\n";
-        return 0;
-    }
-
     std::unique_ptr<Scheduler> scheduler;
     if (ourSettings.jobScheduler.get() == "slurm") {
         scheduler = std::make_unique<Slurm>();
+    } else if (ourSettings.jobScheduler.get() == "pbs") {
+        scheduler = std::make_unique<PBS>();
     } else {
         using namespace nix;
         printError("NSH Error: unsupported job scheduler %s", ourSettings.jobScheduler.get());
@@ -221,7 +217,7 @@ int main(int argc, char **argv)
     uploadLock = -1;
 
     std::atomic<bool> cmdAbend = false;
-    
+
     std::thread cmdOutThread([&]() {
         auto cmdOutIs = scheduler->getStderrStream();
 

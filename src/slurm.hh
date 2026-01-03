@@ -19,10 +19,15 @@ struct SlurmAPIError : public std::runtime_error
     explicit SlurmAPIError(const std::string &s) : std::runtime_error(s) {}
 };
 
+struct SlurmConfigError : public std::runtime_error
+{
+    explicit SlurmConfigError(const std::string &s) : std::runtime_error(s) {}
+};
+
 class Slurm : public Scheduler
 {
 public:
-    Slurm() {}
+    Slurm();
     ~Slurm();
     std::string submit(nix::StorePath drvPath);
     int waitForJobFinish();

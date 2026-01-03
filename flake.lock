@@ -20,16 +20,33 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1766866029,
-        "narHash": "sha256-Di/EkTfspFCEwXnzvU+EV+OLGV0qQmbJ0dC0v6X4oA0=",
+        "lastModified": 1767038925,
+        "narHash": "sha256-ZiN461H8qj3kzapWWLikXmj7z26cE+ArB5A5/gJbnyA=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "53e4862d78d998ee45d65f576dbb953adadcec53",
+        "rev": "b3e63c463300afff27cf4a1c6c81d4a6d41eb9b3",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "openpbs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767041360,
+        "narHash": "sha256-i5gXJz1mecEegqWwDewZxwwX56Bvdmuq3HWghtYBQoI=",
+        "owner": "lisanna-dettwyler",
+        "repo": "openpbs",
+        "rev": "987f38a3773927f17a5c981a001e8faedbac0b8c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lisanna-dettwyler",
+        "ref": "fix-tcl8",
+        "repo": "openpbs",
         "type": "github"
       }
     },
@@ -53,6 +70,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
+        "openpbs": "openpbs",
         "restclient-cpp": "restclient-cpp"
       }
     },

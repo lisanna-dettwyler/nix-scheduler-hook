@@ -1,4 +1,4 @@
-{ pkgs, nixpkgs, nix-scheduler-hook }:
+{ pkgs, nixpkgs, nix-scheduler-hook, openpbs }:
 with pkgs;
 let
   slurmconfig = {
@@ -16,6 +16,25 @@ let
     systemd.tmpfiles.rules = [
       "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
     ];
+  };
+  pbsConfig = {
+    networking.firewall.enable = false;
+    environment.etc."pbs.conf".text = ''
+      PBS_EXEC=${openpbs}
+      PBS_SERVER=pbs
+      PBS_START_SERVER=1
+      PBS_START_SCHED=1
+      PBS_START_COMM=1
+      PBS_START_MOM=1
+      PBS_HOME=/var/spool/pbs
+      PBS_CORE_LIMIT=unlimited
+      PBS_SUPPORTED_AUTH_METHODS=munge
+      PBS_AUTH_METHOD=munge
+    '';
+    systemd.tmpfiles.rules = [
+      "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
+    ];
+    services.munge.enable = true;
   };
   inherit (import "${nixpkgs}/nixos/tests/ssh-keys.nix" pkgs)
     snakeOilPrivateKey
@@ -136,7 +155,7 @@ in
       with subtest("generate_config"):
           token = control.succeed("scontrol token lifespan=infinite").split('=')[1].rstrip()
           submit.succeed("mkdir -p /etc/nix")
-          submit.succeed("echo 'state-dir = /root/nsh' > /etc/nix/nsh.conf")
+          submit.succeed("echo 'slurm-state-dir = /root/nsh' > /etc/nix/nsh.conf")
           submit.succeed("echo 'slurm-jwt-token = %s' >> /etc/nix/nsh.conf" % token)
           submit.succeed("echo 'system = %s' >> /etc/nix/nsh.conf" % "${guestSystem}")
 
@@ -233,6 +252,88 @@ in
           submit.succeed("echo 'remote-store = /store' >> /etc/nix/nsh.conf")
           submit.succeed(build_derivation_simple)
       submit.succeed("sed -i 's|/store|auto|g' /etc/nix/nsh.conf")
+    '';
+  };
+
+  pbsTests = testers.nixosTest {
+    name = "Basic PBS Tests";
+    interactive.sshBackdoor.enable = true;
+    nodes.submit = {
+      imports = [ pbsConfig ];
+      environment.systemPackages = [ openpbs ];
+    };
+    nodes.pbs = {
+      security.sudo.enable = true;
+      virtualisation.diskSize = 2048;
+      imports = [ pbsConfig ];
+      systemd.services.pbs = {
+        path = [
+          gnused
+          coreutils
+          hostname
+          getent
+          gnugrep
+          gawk
+          postgresql
+          su
+          procps
+          python3
+        ];
+        wantedBy = [ "multi-user.target" ];
+        after = [
+          "systemd-tmpfiles-clean.service"
+          "network-online.target"
+          "remote-fs.target"
+        ];
+        wants = [ "network-online.target" ];
+        serviceConfig = {
+          Type = "forking";
+          ExecStart = "${openpbs}/libexec/pbs_init.d start";
+          ExecReload = "${openpbs}/libexec/pbs_init.d restart";
+          ExecStop = "${openpbs}/libexec/pbs_init.d stop";
+        };
+        preStart = ''
+          mkdir -p /var/spool/pbs
+        '';
+      };
+      services.postgresql.enable = true;
+      services.openssh.enable = true;
+      users.users.root.openssh.authorizedKeys.keys = [
+        snakeOilPublicKey
+      ];
+    };
+    testScript = ''
+      pbs.wait_for_unit("pbs.service")
+      submit.wait_for_unit("multi-user.target")
+      submit.succeed("qmgr -c 'set node pbs queue=workq'")
+
+      submit.succeed("mkdir -p /etc/nix")
+      submit.succeed("echo 'system = %s' >> /etc/nix/nsh.conf" % "${guestSystem}")
+
+      submit.succeed("mkdir -p ~/.ssh")
+      submit.succeed("cat ${snakeOilPrivateKey} > ~/.ssh/privkey.snakeoil")
+      submit.succeed("chmod 600 ~/.ssh/privkey.snakeoil")
+      submit.succeed("echo 'Host pbs' >> ~/.ssh/config")
+      submit.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
+      submit.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
+
+      build_derivation_simple = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substitute false \
+          -E '
+            derivation {
+              name = "test";
+              builder = "/bin/sh";
+              args = ["-c" "echo something > $out"];
+              system = builtins.currentSystem;
+              requiredSystemFeatures = [ "nsh" ];
+              REBUILD = builtins.currentTime;
+            }'
+      """
+
+      with subtest("run_nix_build_simple"):
+          submit.succeed(build_derivation_simple)
     '';
   };
 }
