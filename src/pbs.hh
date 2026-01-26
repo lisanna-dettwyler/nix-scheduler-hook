@@ -23,6 +23,11 @@ struct PBSDeletedError : public std::runtime_error
     explicit PBSDeletedError(const std::string &s) : std::runtime_error("Job " + s + " was unexpectedly deleted") {}
 };
 
+struct PBSQueryError : public std::runtime_error
+{
+    explicit PBSQueryError(const std::string &s) : std::runtime_error(s) {}
+};
+
 class PBS : public Scheduler
 {
 public:

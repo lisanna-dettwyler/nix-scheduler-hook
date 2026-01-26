@@ -1,0 +1,52 @@
+# Default meson build dir
+/build
+
+# /tests/functional/
+/tests/functional/common/subst-vars.sh
+/tests/functional/restricted-innocent
+/tests/functional/debugger-test-out
+/tests/functional/test-libstoreconsumer/test-libstoreconsumer
+/tests/functional/nix-shell
+
+# /tests/functional/lang/
+/tests/functional/lang/*.out
+/tests/functional/lang/*.out.xml
+/tests/functional/lang/*.err
+/tests/functional/lang/*.ast
+
+/outputs
+
+*~
+
+# GNU Global
+GPATH
+GRTAGS
+GSYMS
+GTAGS
+
+# ccls
+/.ccls-cache
+
+# auto-generated compilation database
+compile_commands.json
+*.compile_commands.json
+
+result
+result-*
+
+# IDE
+.vscode/
+.idea/
+
+.pre-commit-config.yaml
+
+# clangd and possibly more
+.cache/
+
+# Mac OS
+.DS_Store
+
+flake-regressions
+
+# direnv
+.direnv/

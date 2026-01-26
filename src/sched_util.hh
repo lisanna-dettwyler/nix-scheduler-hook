@@ -14,7 +14,7 @@ static std::string genScript(nix::StorePath drvPath, std::string rootPath)
     return nix::fmt(
         "#!/bin/sh\n"
         "while ! nix-store --store '%s' --query --hash %s/%s >/dev/null 2>&1; do sleep 0.1; done;"
-        "nix-store --store '%s' --realise %s/%s --option system-features '%s' --add-root %s --quiet;"
+        "nix-store --store '%s' --realise %s/%s --quiet --option system-features '%s' --add-root %s;"
         "rc=$?;"
         "echo '@nsh done' >&2;"
         "exit $rc",

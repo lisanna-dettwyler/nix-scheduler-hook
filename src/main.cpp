@@ -112,13 +112,20 @@ int main(int argc, char **argv)
     }
 
     std::unique_ptr<Scheduler> scheduler;
-    if (ourSettings.jobScheduler.get() == "slurm") {
-        scheduler = std::make_unique<Slurm>();
-    } else if (ourSettings.jobScheduler.get() == "pbs") {
-        scheduler = std::make_unique<PBS>();
-    } else {
+    try {
+        if (ourSettings.jobScheduler.get() == "slurm") {
+            scheduler = std::make_unique<Slurm>();
+        } else if (ourSettings.jobScheduler.get() == "pbs") {
+            scheduler = std::make_unique<PBS>();
+        } else {
+            using namespace nix;
+            printError("NSH Error: unsupported job scheduler %s", ourSettings.jobScheduler.get());
+            std::cerr << "# decline-permanently\n";
+            return 0;
+        }
+    } catch (std::exception & e) {
         using namespace nix;
-        printError("NSH Error: unsupported job scheduler %s", ourSettings.jobScheduler.get());
+        printError("NSH Error: %s", e.what());
         std::cerr << "# decline-permanently\n";
         return 0;
     }
@@ -258,7 +265,9 @@ int main(int argc, char **argv)
         rc = scheduler->waitForJobFinish();
     } catch (std::exception & e) {
         using namespace nix;
-        printError("NSH Error: error while waiting for job %s termination", scheduler->getJobId());
+        printError("NSH Error: error while waiting for job %s termination: %s", scheduler->getJobId(), e.what());
+        cmdAbend = true;
+        cmdOutThread.join();
         return 1;
     }
     if (rc == -1) {

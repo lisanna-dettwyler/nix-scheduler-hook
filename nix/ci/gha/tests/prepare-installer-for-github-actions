@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+nix build -L ".#installerScriptForGHA" ".#binaryTarball"
+
+mkdir -p out
+cp ./result/install "out/install"
+name="$(basename "$(realpath ./result-1)")"
+# everything before the first dash
+cp -r ./result-1 "out/${name%%-*}"

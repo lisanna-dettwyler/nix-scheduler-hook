@@ -26,6 +26,9 @@ stdenv.mkDerivation {
     cp -r ${restclient-cpp} $sourceRoot/subprojects/restclient-cpp
   '';
 
+  mesonBuildType = "debug";
+  dontStrip = true;
+
   installPhase = ''
     mkdir -p $out/bin
     mv nsh $out/bin

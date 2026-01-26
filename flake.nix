@@ -18,6 +18,12 @@
   outputs = { self, nixpkgs, flake-utils, ... }@inputs: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
+      # nix = pkgs.nix.overrideSource { name = "nix"; outPath = ./nix; };
+      nix = pkgs.nix.overrideSource { name = "patched"; outPath = builtins.path {
+        name = "patched";
+        path = ./nix;
+      }; };
+      # nix = pkgs.nix.overrideSource ./nix;
       tclWithTk = with pkgs; symlinkJoin {
         name = "tcl-with-tk";
         paths = [
@@ -44,6 +50,9 @@
           "--with-swig=${swig}"
           "--sysconfdir=$out/etc"
         ];
+        dontStrip = true;
+        CFLAGS = "-O0 -g";
+        CXXFLAGS = "-O0 -g";
         postInstall = ''
           substituteInPlace $out/libexec/pbs_habitat --replace-fail /bin/ls ls
           export -f wrapProgram
@@ -55,8 +64,9 @@
           #   --replace-quiet "2>/dev/null" "" \
           #   --replace-quiet "> /dev/null" "" \
           #   --replace-quiet ">/dev/null" ""
-          ls $out/bin | xargs -I '{}' bash -c "wrapProgram $out/bin/{} --set LD_LIBRARY_PATH ${munge}/lib --run set -x"
-          ls $out/libexec | xargs -I '{}' bash -c "wrapProgram $out/libexec/{} --set LD_LIBRARY_PATH ${munge}/lib --run set -x"
+          # ${findutils}/bin/find $out/bin/ $out/libexec/ -type f -exec file "{}" + | ${gawk}/bin/awk -F: '/ELF/ {print $1}' | xargs patchelf --add-rpath ${munge}/lib --add-needed libmunge.so
+          ${findutils}/bin/find $out/bin/ $out/libexec/ -type f -exec file "{}" + | ${gawk}/bin/awk -F: '/ELF/ {print $1}' | xargs -I '{}' bash -c "wrapProgram {} --set LD_LIBRARY_PATH ${munge}/lib"
+          # ls $out/libexec | xargs -I '{}' bash -c "wrapProgram $out/libexec/{} --set LD_LIBRARY_PATH ${munge}/lib --run 'set +e' --run 'set -x'"
           for file in pbs_dedicated pbs_holidays pbs_resource_group pbs_sched_config; do
               cp src/scheduler/$file $out/etc/
           done
@@ -64,11 +74,18 @@
       };
     in rec {
       checks = import ./tests.nix {
-        inherit nixpkgs pkgs openpbs;
+        inherit nixpkgs pkgs openpbs nix;
         nix-scheduler-hook = packages.default;
       };
       packages = rec {
-        inherit openpbs;
+        inherit openpbs nix;
+        nixDebug = pkgs.symlinkJoin {
+          name = "nix-debug";
+          paths = [
+            nix.nix-cli.debug
+          ] ++ (map (p: p.value.debug or nix.nix-cli.debug) (pkgs.lib.attrsToList nix.libs));
+          stripPrefix = "/lib/debug";
+        };
         default = nix-scheduler-hook;
         nix-scheduler-hook = import ./default.nix {
           inherit pkgs openpbs;

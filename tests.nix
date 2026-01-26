@@ -1,7 +1,34 @@
-{ pkgs, nixpkgs, nix-scheduler-hook, openpbs }:
+{ pkgs, nixpkgs, nix-scheduler-hook, openpbs, nix }@args:
 with pkgs;
 let
   slurmconfig = {
+    environment.systemPackages = [ (gdb.overrideAttrs (final: prev: {
+      src = fetchgit {
+        url = "https://sourceware.org/git/binutils-gdb.git";
+        rev = "a72b83ab3792532b66cc5c472a20476a8a2fd969";
+        hash = "sha256-0cT3/jXctvs9rVKvpAiqGkdMyb2Yfy1S0D6ullFlbkE=";
+      };
+      preConfigure = ''
+        # remove precompiled docs, required for man gdbinit to mention /etc/gdb/gdbinit
+        rm -f gdb/doc/*.info*
+        rm -f gdb/doc/*.5
+        rm -f gdb/doc/*.1
+        # fix doc build https://sourceware.org/bugzilla/show_bug.cgi?id=27808
+        rm -f gdb/doc/GDBvn.texi
+
+        # GDB have to be built out of tree.
+        mkdir _build
+        cd _build
+      '';
+      nativeBuildInputs = prev.nativeBuildInputs ++ [ bison flex ];
+      # enableParallelBuilding = false;
+    })) ];
+    # nix.package = nix.overrideAttrs (final: prev: {
+    #   mesonBuildType = "debug";
+    #   dontStrip = true;
+    #   src = ./nix;
+    # });
+    nix.package = args.nix;
     services.slurm = {
       controlMachine = "control";
       nodeName = [ "node[1-3] CPUs=1 State=UNKNOWN" ];
@@ -16,6 +43,9 @@ let
     systemd.tmpfiles.rules = [
       "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
     ];
+    nix.settings.substitute = false;
+    nix.settings.build-hook = "${nix-scheduler-hook}/bin/nsh";
+    # nix.settings.sandbox-paths = "/tmp";
   };
   pbsConfig = {
     networking.firewall.enable = false;
@@ -29,12 +59,23 @@ let
       PBS_HOME=/var/spool/pbs
       PBS_CORE_LIMIT=unlimited
       PBS_SUPPORTED_AUTH_METHODS=munge
-      PBS_AUTH_METHOD=munge
+      PBS_AUTH_METHOD=MUNGE
     '';
     systemd.tmpfiles.rules = [
       "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
     ];
     services.munge.enable = true;
+    environment.variables.LD_LIBRARY_PATH = "${munge}/lib";
+    environment.systemPackages = [ openpbs ];
+    services.openssh.enable = true;
+    users.users.root.openssh.authorizedKeys.keys = [
+      snakeOilPublicKey
+    ];
+    nix.settings.substitute = false;
+    nix.settings.build-hook = "${nix-scheduler-hook}/bin/nsh";
+    nix.extraOptions = ''
+      sandbox-paths =
+    '';
   };
   inherit (import "${nixpkgs}/nixos/tests/ssh-keys.nix" pkgs)
     snakeOilPrivateKey
@@ -55,6 +96,17 @@ let
       hostToGuest.${hostPlatform.system} or (throw message);
 in
 {
+  debugTests = testers.nixosTest {
+    name = "debug tests";
+    interactive.sshBackdoor.enable = true;
+    nodes.main = { ... }: {};
+    testScript = ''
+      c = """
+        nix-build -E 'derivation { name = "test"; builder = "/bin/sh"; args = ["-c" "echo something > $out"]; system = builtins.currentSystem; REBUILD = builtins.currentTime; }'
+      """
+      main.succeed(c)
+    '';
+  };
   slurmTests = testers.nixosTest {
     name = "Basic Slurm Tests";
     interactive.sshBackdoor.enable = true;
@@ -122,6 +174,7 @@ in
             services.slurm.enableStools = true;
             services.slurm.rest.enable = true;
             # services.slurm.rest.debug = "debug";
+            virtualisation.memorySize = 8192;
           };
 
         node1 = computeNode;
@@ -154,16 +207,12 @@ in
 
       with subtest("generate_config"):
           token = control.succeed("scontrol token lifespan=infinite").split('=')[1].rstrip()
-          submit.succeed("mkdir -p /etc/nix")
           submit.succeed("echo 'slurm-state-dir = /root/nsh' > /etc/nix/nsh.conf")
           submit.succeed("echo 'slurm-jwt-token = %s' >> /etc/nix/nsh.conf" % token)
           submit.succeed("echo 'system = %s' >> /etc/nix/nsh.conf" % "${guestSystem}")
 
       build_derivation_simple = """
-        nix-build \
-          --option build-hook ${nix-scheduler-hook}/bin/nsh \
-          --option substitute false \
-          -E '
+        nix-build -E '
             derivation {
               name = "test";
               builder = "/bin/sh";
@@ -193,12 +242,11 @@ in
               mkDrv = name: echo: derivation {
                 inherit name;
                 builder = "/bin/sh";
-                args = ["-c" "echo $${echo} > $out"];
+                args = ["-c" ("echo " + echo + " > $out")];
                 system = builtins.currentSystem;
                 requiredSystemFeatures = ["nsh"];
               };
-              dep = n: "dep$${n}";
-            in mkDrv "test" "$${mkDrv (dep 1) (dep 1)} $${mkDrv (dep 2) (dep 2)} $${mkDrv (dep 3) (dep 3)}"'
+            in mkDrv "test-deps" ((mkDrv "dep1" "dep1") + (mkDrv "dep2" "dep2") + (mkDrv "dep3" "dep3"))'
       """
 
       with subtest("run_nix_build_deps"):
@@ -260,7 +308,6 @@ in
     interactive.sshBackdoor.enable = true;
     nodes.submit = {
       imports = [ pbsConfig ];
-      environment.systemPackages = [ openpbs ];
     };
     nodes.pbs = {
       security.sudo.enable = true;
@@ -295,20 +342,25 @@ in
         preStart = ''
           mkdir -p /var/spool/pbs
         '';
+        environment.LD_LIBRARY_PATH = "${munge}/lib";
       };
       services.postgresql.enable = true;
-      services.openssh.enable = true;
-      users.users.root.openssh.authorizedKeys.keys = [
-        snakeOilPublicKey
-      ];
     };
     testScript = ''
+      start_all()
       pbs.wait_for_unit("pbs.service")
+      pbs.succeed("qmgr -c 'set node pbs queue=workq'")
+      pbs.succeed("qmgr -c 'set node pbs resources_available.ncpus=1'")
+      pbs.succeed("qmgr -c 'set server acl_roots=root'")
+      pbs.succeed("qmgr -c 'set server flatuid=true'")
+      pbs.succeed("qmgr -c 'set server job_history_enable=true'")
+      pbs.wait_until_succeeds("pbsnodes pbs | grep 'state = free'")
       submit.wait_for_unit("multi-user.target")
-      submit.succeed("qmgr -c 'set node pbs queue=workq'")
 
       submit.succeed("mkdir -p /etc/nix")
       submit.succeed("echo 'system = %s' >> /etc/nix/nsh.conf" % "${guestSystem}")
+      submit.succeed("echo 'job-scheduler = pbs' >> /etc/nix/nsh.conf")
+      submit.succeed("echo 'pbs-host = pbs' >> /etc/nix/nsh.conf")
 
       submit.succeed("mkdir -p ~/.ssh")
       submit.succeed("cat ${snakeOilPrivateKey} > ~/.ssh/privkey.snakeoil")
@@ -316,6 +368,16 @@ in
       submit.succeed("echo 'Host pbs' >> ~/.ssh/config")
       submit.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
       submit.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
+
+      pbs.succeed("mkdir -p ~/.ssh")
+      pbs.succeed("cat ${snakeOilPrivateKey} > ~/.ssh/privkey.snakeoil")
+      pbs.succeed("chmod 600 ~/.ssh/privkey.snakeoil")
+      pbs.succeed("echo 'Host submit' >> ~/.ssh/config")
+      pbs.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
+      pbs.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
+      pbs.succeed("echo 'Host pbs' >> ~/.ssh/config")
+      pbs.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
+      pbs.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
 
       build_derivation_simple = """
         nix-build \
@@ -334,6 +396,26 @@ in
 
       with subtest("run_nix_build_simple"):
           submit.succeed(build_derivation_simple)
+
+      build_derivation_deps = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substitute false \
+          -E '
+            let
+              mkDrv = name: echo: derivation {
+                inherit name;
+                builder = "/bin/sh";
+                args = ["-c" ("echo " + echo + " > $out")];
+                system = builtins.currentSystem;
+                requiredSystemFeatures = ["nsh"];
+                REBUILD = builtins.currentTime;
+              };
+            in mkDrv "test-deps" ((mkDrv "dep1" "dep1") + (mkDrv "dep2" "dep2") + (mkDrv "dep3" "dep3"))'
+      """
+
+      with subtest("run_nix_build_deps"):
+          submit.succeed(build_derivation_deps)
     '';
   };
 }
