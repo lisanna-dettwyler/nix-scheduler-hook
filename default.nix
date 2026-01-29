@@ -2,12 +2,13 @@
 with pkgs;
 stdenv.mkDerivation {
   name = "nix-scheduler-hook";
-  src = ./.;
+  src = ./src;
+
   nativeBuildInputs = [
     meson
     cmake
     ninja
-    pkg-config  
+    pkg-config
   ];
 
   buildInputs = [
