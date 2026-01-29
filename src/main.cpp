@@ -262,7 +262,9 @@ int main(int argc, char **argv)
         rc = scheduler->waitForJobFinish();
     } catch (std::exception & e) {
         using namespace nix;
-        printError("NSH Error: error while waiting for job %s termination", scheduler->getJobId());
+        printError("NSH Error: error while waiting for job %s termination: %s", scheduler->getJobId(), e.what());
+        cmdAbend = true;
+        cmdOutThread.join();
         return 1;
     }
     if (rc == -1) {
