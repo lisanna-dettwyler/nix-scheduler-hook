@@ -24,6 +24,7 @@ using namespace std::chrono_literals;
 #include <nix/util/error.hh>
 #include <nix/util/util.hh>
 #include <nix/util/hash.hh>
+#include <nix/util/signals-impl.hh>
 
 #include "settings.hh"
 #include "slurm.hh"
@@ -39,8 +40,27 @@ static std::string escapeUri(std::string uri)
     return uri;
 }
 
+struct SigHandlerExit : public std::exception
+{
+    explicit SigHandlerExit() : std::exception() {}
+};
+
+static void sigHandler(int signo)
+{
+    throw SigHandlerExit();
+}
+
 int main(int argc, char **argv)
 {
+try {
+    /* Ensure destructors are called if terminated by Nix */
+    struct sigaction act;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+    act.sa_handler = sigHandler;
+    if (sigaction(SIGTERM, &act, 0))
+        throw nix::SysError("assigning handler for SIGTERM");
+
     nix::logger = nix::makeJSONLogger(nix::getStandardError());
 
     /* Ensure we don't get any SSH passphrase or host key popups. */
@@ -69,7 +89,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    nix::initNix();
+    nix::initLibStore();
     nix::initPlugins();
     auto store = nix::openStore();
 
@@ -221,7 +241,7 @@ int main(int argc, char **argv)
     uploadLock = -1;
 
     std::atomic<bool> cmdAbend = false;
-    
+
     std::thread cmdOutThread([&]() {
         auto cmdOutIs = scheduler->getStderrStream();
 
@@ -324,6 +344,9 @@ int main(int argc, char **argv)
         experimentalFeatureSettings.require(Xp::CaDerivations);
         store->registerDrvOutput(realisation);
     }
+} catch (SigHandlerExit & e) {
+    return 0;
+}
 
     return 0;
 }

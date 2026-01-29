@@ -36,8 +36,11 @@ static std::shared_ptr<RestClient::Connection> getConn()
     return conn;
 }
 
-static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPath, std::string rootPath, std::string jobStderr)
+std::string Slurm::submit(nix::StorePath drvPath)
 {
+    rootPath = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
+    jobStderr = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
+
     char pathVar[] = PATH_VAR;
     json req = {
         {"job", {
@@ -78,10 +81,9 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
             response["errors"][0]["error"]));
     }
     int jobIdInt = response["job_id"];
-    std::string jobId = std::to_string(jobIdInt);
+    jobId = std::to_string(jobIdInt);
 
     bool foundBatchHost = false;
-    std::string batchHost;
     auto sleepTime = 50ms;
     while (!foundBatchHost) {
         RestClient::Response qr = conn->get("/slurm/v0.0.43/job/" + jobId);
@@ -96,7 +98,7 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
             qresp["jobs"][0].contains("batch_host") &&
             qresp["jobs"][0]["batch_host"] != ""
         ) {
-            batchHost = qresp["jobs"][0]["batch_host"];
+            hostname = qresp["jobs"][0]["batch_host"];
             foundBatchHost = true;
         } else {
             std::this_thread::sleep_for(sleepTime);
@@ -104,7 +106,7 @@ static std::pair<std::string, std::string> buildDerivation(nix::StorePath drvPat
         }
     }
 
-    return {batchHost, jobId};
+    return hostname;
 }
 
 static bool isLive(std::string state)
@@ -150,14 +152,6 @@ static uint32_t getJobReturnCode(std::string jobId)
     }
 }
 
-std::string Slurm::submit(nix::StorePath drvPath)
-{
-    auto r = buildDerivation(drvPath, rootPath, jobStderr);
-    hostname = r.first;
-    jobId = r.second;
-
-    return hostname;
-}
 
 int Slurm::waitForJobFinish()
 {
@@ -178,7 +172,7 @@ int Slurm::waitForJobFinish()
 
 Slurm::~Slurm()
 {
-    if (isLive(getJobState(jobId))) {
+    if (jobId != "" && isLive(getJobState(jobId))) {
         getConn()->del("/slurm/v0.0.43/job/" + jobId);
     }
 }
