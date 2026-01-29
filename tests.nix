@@ -16,6 +16,7 @@ let
     systemd.tmpfiles.rules = [
       "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
     ];
+    nix.settings.substitute = false;
   };
   inherit (import "${nixpkgs}/nixos/tests/ssh-keys.nix" pkgs)
     snakeOilPrivateKey
@@ -100,9 +101,11 @@ in
           { ... }:
           {
             imports = [ slurmconfig ];
+            nix.settings.build-hook = "${nix-scheduler-hook}/bin/nsh";
             services.slurm.enableStools = true;
             services.slurm.rest.enable = true;
             # services.slurm.rest.debug = "debug";
+            virtualisation.memorySize = 4096;
           };
 
         node1 = computeNode;
@@ -111,6 +114,8 @@ in
       };
 
     testScript = ''
+      start_all()
+
       with subtest("can_start_slurmdbd"):
           dbd.wait_for_unit("slurmdbd.service")
           dbd.wait_for_open_port(6819)
@@ -143,7 +148,6 @@ in
       build_derivation_simple = """
         nix-build \
           --option build-hook ${nix-scheduler-hook}/bin/nsh \
-          --option substitute false \
           -E '
             derivation {
               name = "test";
@@ -168,18 +172,16 @@ in
       build_derivation_deps = """
         nix-build \
           --option build-hook ${nix-scheduler-hook}/bin/nsh \
-          --option substitute false \
           -E '
             let
               mkDrv = name: echo: derivation {
                 inherit name;
                 builder = "/bin/sh";
-                args = ["-c" "echo $${echo} > $out"];
+                args = ["-c" ("echo " + echo + " > $out")];
                 system = builtins.currentSystem;
                 requiredSystemFeatures = ["nsh"];
               };
-              dep = n: "dep$${n}";
-            in mkDrv "test" "$${mkDrv (dep 1) (dep 1)} $${mkDrv (dep 2) (dep 2)} $${mkDrv (dep 3) (dep 3)}"'
+            in mkDrv "test-deps" ((mkDrv "dep1" "dep1") + (mkDrv "dep2" "dep2") + (mkDrv "dep3" "dep3"))'
       """
 
       with subtest("run_nix_build_deps"):
@@ -188,7 +190,6 @@ in
       build_derivation_unsupported_system_features = """
         nix-build \
           --option build-hook ${nix-scheduler-hook}/bin/nsh \
-          --option substitute false \
           -E '
             derivation {
               name = "test";
@@ -205,7 +206,6 @@ in
       build_derivation_unsupported_system = """
         nix-build \
           --option build-hook ${nix-scheduler-hook}/bin/nsh \
-          --option substitute false \
           -E '
             derivation {
               name = "test";
