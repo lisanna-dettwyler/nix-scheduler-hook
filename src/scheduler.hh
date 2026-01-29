@@ -2,6 +2,7 @@
 #include <utility>
 #include <iostream>
 #include <ext/stdio_filebuf.h>
+#include <array>
 
 #include <nix/store/path.hh>
 #include <nix/store/store-open.hh>
@@ -16,13 +17,24 @@ class Scheduler
 {
 public:
     Scheduler() {}
-    virtual ~Scheduler() {}
+    virtual ~Scheduler()
+    {
+        if (sshMaster) {
+            for (auto & file : std::array<std::string, 2>{rootPath, jobStderr}) {
+                nix::Strings rmCmd = {"bash", "-c", "rm -fv " + file + "; echo done"};
+                auto cmd = sshMaster->startCommand(std::move(rmCmd));
+                auto cmdBuf = __gnu_cxx::stdio_filebuf<char>(cmd->out.release(), std::ios::in);
+                auto cmdStream = std::istream(&cmdBuf);
+                cmdStream.get();
+            }
+        }
+    }
 
     struct StartBuildNotCalled : public std::runtime_error
     {
         explicit StartBuildNotCalled() : std::runtime_error("startBuild() has not yet been called.") {}
     };
-    
+
     /* Submits a derivation for building and establishes an ssh connection to
      * the scheduled host.
      * @return Hostname of the node assigned to the job. */
@@ -41,7 +53,7 @@ public:
         // nix::SSHMaster does not permit assignment
         static auto ssh = sshStoreConfig->createSSHMaster(false);
         sshMaster = &ssh;
-        
+
         submitCalled = true;
         return hostname;
     }
@@ -49,7 +61,7 @@ public:
     /* Submits a derivation for building.
      * @return Hostname of the node assigned to the job. */
     virtual std::string submit(nix::StorePath drvPath) = 0;
-    
+
     /* Waits for the submitted job to finish.
      * @return Exit code of job, or -1 if abnormal termination (e.g. cancelled). */
     virtual int waitForJobFinish() = 0;
