@@ -1,4 +1,5 @@
-result
-build
-*-source
-subprojects
+./result*
+./build
+./*-source
+./source
+./subprojects
