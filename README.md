@@ -45,3 +45,5 @@ After building from source, edit your `nix.conf` and set `build-hook = /path/to/
 ## Known Limitations
 
 Because of https://github.com/NixOS/nix/issues/14760, it is impossible for NSH to cleanup any outstanding jobs if the build gets manually cancelled, e.g. with ctrl-c. It is therefore currently the responsibility of the user to cleanup all the jobs NSH submits to the scheduler on their behalf if they cancel a build.
+
+Some recent versions of Nix do not respect the `build-hook` option in `nix.conf`, requiring you to pass NSH via `--option` instead. This issue has been fixed in upstream as of [0e3a620](https://github.com/NixOS/nix/commit/0e3a6203747b6c3c24dec34cb3df5b829bf47100).
