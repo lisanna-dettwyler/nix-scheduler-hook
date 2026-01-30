@@ -152,6 +152,11 @@ static uint32_t getJobReturnCode(std::string jobId)
     }
 }
 
+Slurm::Slurm()
+{
+    if (ourSettings.slurmStateDir.get() == "")
+        throw SlurmConfigError("slurm-state-dir setting not configured");
+}
 
 int Slurm::waitForJobFinish()
 {

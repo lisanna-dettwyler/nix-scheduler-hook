@@ -1,4 +1,4 @@
-{ pkgs, restclient-cpp }:
+{ pkgs, restclient-cpp, openpbs }:
 with pkgs;
 stdenv.mkDerivation {
   name = "nix-scheduler-hook";
@@ -18,6 +18,7 @@ stdenv.mkDerivation {
     nix.libs.nix-store
     nix.libs.nix-main
     nlohmann_json
+    openpbs
   ];
 
   postUnpack = ''

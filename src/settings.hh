@@ -16,14 +16,7 @@ struct Settings : public nix::Config
         this,
         "slurm",
         "job-scheduler",
-        "Which job scheduler to use, currently only 'slurm' is available."
-    };
-
-    nix::Setting <std::string> stateDir {
-        this,
-        "",
-        "state-dir",
-        "Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons."
+        "Which job scheduler to use, available choices are 'slurm' and 'pbs'."
     };
 
     nix::Setting <std::string> system {
@@ -54,6 +47,13 @@ struct Settings : public nix::Config
         "The store URL to be used on the remote machine. Should be set to 'auto' if using the nix-daemon."
     };
 
+    nix::Setting <std::string> slurmStateDir {
+        this,
+        "",
+        "slurm-state-dir",
+        "Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons."
+    };
+
     nix::Setting<std::string> slurmApiHost {
         this,
         "localhost",
@@ -80,6 +80,20 @@ struct Settings : public nix::Config
         {},
         "slurm-extra-submission-params",
         "Extra parameters to set in the /job/submit API request, as a JSON dictionary that will be merged with the 'job' value."
+    };
+
+    nix::Setting<std::string> pbsHost {
+        this,
+        "",
+        "pbs-host",
+        "Hostname or address of the host running the PBS server."
+    };
+
+    nix::Setting<unsigned int> pbsPort {
+        this,
+        15001,
+        "pbs-port",
+        "Port that the PBS server is listening on."
     };
 };
 

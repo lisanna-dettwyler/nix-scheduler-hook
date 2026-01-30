@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <utility>
 #include <iostream>
@@ -40,9 +42,6 @@ public:
      * @return Hostname of the node assigned to the job. */
     std::string startBuild(nix::StorePath drvPath)
     {
-        rootPath = ourSettings.stateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
-        jobStderr = ourSettings.stateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
-
         hostname = submit(drvPath);
         storeUri = "ssh-ng://" + hostname;
         {

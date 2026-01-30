@@ -4,19 +4,20 @@ This is a build hook that allows Nix builds to be forwarded to clusters running 
 
 General settings:
 
-- `job-scheduler`: Which job scheduler to use, currently only 'slurm' is available. Default: `slurm`.
-- `state-dir` (required): Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons.
+- `job-scheduler`: Which job scheduler to use, available choices are 'slurm' and 'pbs'. Default: `slurm`.
 - `system`: The system type of this cluster, jobs requiring a different system will not be routed to the scheduler. Default: `x86_64-linux`.
 - `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
 - `remote-store`: The store URL to be used on the remote machine. See: [https://nix.dev/manual/nix/latest/store/types/](https://nix.dev/manual/nix/latest/store/types/). Default: `auto`.
 
-
 ## Supported Job Schedulers
 
-Currently, only Slurm is supported through its [REST API](https://slurm.schedmd.com/rest.html). This requires `slurmrestd` to be running on the cluster and for you to have a valid JWT token for your account. At a minimum, you should set `slurm-jwt-token` in `nsh.conf` to your JWT token.
+### Slurm
+
+Slurm is supported through its [REST API](https://slurm.schedmd.com/rest.html). This requires `slurmrestd` to be running on the cluster and for you to have a valid JWT token for your account. At a minimum, you should set `slurm-jwt-token` in `nsh.conf` to your JWT token.
 
 The current settings available for Slurm are:
 
+- `slurm-state-dir` (required): Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons.
 - `slurm-api-host`: Hostname or address of the Slurm REST API endpoint. Default: `localhost`.
 - `slurm-api-port`: Port to use for the Slurm REST API endpoint. Default: `6820`.
 - `slurm-jwt-token` (required if using Slurm): JWT token for authentication to the Slurm REST API.
@@ -37,6 +38,17 @@ runCommand "myjob" {
 echo "Hello Slurm!"
 ''
 ```
+
+### PBS
+
+PBS is supported through libpbs, so you may have to recompile NSH against an older version depending on what your cluster is running.
+
+The current settings available for PBS are:
+
+- `pbs-host`: Hostname or address of the host running the PBS server. Default: `PBS_SERVER` value from `pbs.conf`.
+- `pbs-port`: Port that the PBS server is listening on. Default: `15001`.
+
+If `pbs-host` is left unspecified, values for both the host and port are taken from `pbs.conf`.
 
 ## Installation
 
