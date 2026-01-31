@@ -152,30 +152,31 @@ try {
 
     std::string host;
     try {
+        nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, "submitting build to scheduler");
         host = scheduler->startBuild(drvPath);
-        nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("started job %d", scheduler->getJobId()));
     } catch (std::exception & e) {
         using namespace nix;
         printError("NSH Error: error when attempting to build derivation on %s: %s", ourSettings.jobScheduler.get(), e.what());
         std::cerr << "# decline-permanently\n";
         return 0;
     }
+    nix::Activity startedJobAct(*nix::logger, nix::lvlInfo, nix::actUnknown, nix::fmt("started job %s on %s", scheduler->getJobId(), host));
 
     const std::string storeUri = "ssh-ng://" + host;
+    std::shared_ptr<nix::Store> sshStore;
     {
         nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
-    }
-    std::shared_ptr<nix::Store> sshStore;
-    try {
-        nix::StoreReference::Params params = {{"remote-store", ourSettings.remoteStore.get()}};
-        sshStore = nix::openStore(storeUri, params);
-        sshStore->connect();
-    } catch (std::exception & e) {
-        auto msg = nix::chomp(nix::drainFD(5, false));
-        using namespace nix;
-        printError("NSH Error: cannot build on '%s': %s%s", storeUri, e.what(), msg.empty() ? "" : ": " + msg);
-        std::cerr << "# decline\n";
-        return 0;
+        try {
+            nix::StoreReference::Params params = {{"remote-store", ourSettings.remoteStore.get()}};
+            sshStore = nix::openStore(storeUri, params);
+            sshStore->connect();
+        } catch (std::exception & e) {
+            auto msg = nix::chomp(nix::drainFD(5, false));
+            using namespace nix;
+            printError("NSH Error: cannot build on '%s': %s%s", storeUri, e.what(), msg.empty() ? "" : ": " + msg);
+            std::cerr << "# decline\n";
+            return 0;
+        }
     }
 
     std::cerr << "# accept\n" << storeUri << "\n";
