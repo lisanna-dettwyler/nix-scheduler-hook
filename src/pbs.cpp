@@ -190,7 +190,6 @@ int PBS::waitForJobFinish()
         auto state = getJobState(connHandle, jobId);
         if (state == "F") {
             attrl exitAttr = {nullptr, ATTR_exit_status, nullptr, nullptr, SET};
-            std::this_thread::sleep_for(30s);
             batch_status *exitStatus = pbs_statjob(connHandle, jobId.data(), &exitAttr, "x");
             auto value = std::atoi(exitStatus->attribs->value);
             pbs_statfree(exitStatus);
