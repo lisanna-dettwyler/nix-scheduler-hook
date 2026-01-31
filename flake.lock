@@ -36,16 +36,15 @@
     "openpbs": {
       "flake": false,
       "locked": {
-        "lastModified": 1769698597,
-        "narHash": "sha256-i9GTjeaByRucRz6V08cEWb2sQhJWLI9TY6Gk5VrCJ0s=",
-        "owner": "lisanna-dettwyler",
+        "lastModified": 1769725171,
+        "narHash": "sha256-NZoSZmcl9a/6YWHO7qRNknB6ii0JBLo5bOpHDRKeuwI=",
+        "owner": "openpbs",
         "repo": "openpbs",
-        "rev": "41e0a3ccaf655939e0f80edeb9a650896ee54293",
+        "rev": "cfd431b703e8cbe3bc99db6fbbcdd970625ef032",
         "type": "github"
       },
       "original": {
-        "owner": "lisanna-dettwyler",
-        "ref": "fix-tcl8",
+        "owner": "openpbs",
         "repo": "openpbs",
         "type": "github"
       }

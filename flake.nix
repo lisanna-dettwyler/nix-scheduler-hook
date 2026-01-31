@@ -9,8 +9,7 @@
       flake = false;
     };
     openpbs = {
-      # url = "github:openpbs/openpbs";
-      url = "github:lisanna-dettwyler/openpbs/fix-tcl8";
+      url = "github:openpbs/openpbs";
       flake = false;
     };
   };
