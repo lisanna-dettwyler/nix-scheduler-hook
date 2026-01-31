@@ -8,7 +8,13 @@
 #include <thread>
 using namespace std::chrono_literals;
 
+#include <nlohmann/json.hpp>
+using namespace nlohmann;
+
 #include <nix/util/fmt.hh>
+#include <nix/store/store-open.hh>
+#include <nix/store/store-api.hh>
+#include <nix/store/derivations.hh>
 
 #include <pbs_error.h>
 
@@ -35,6 +41,24 @@ static void waitForJobRunning(int conn, std::string jobId)
             throw PBSDeletedError(jobId);
         std::this_thread::sleep_for(sleepTime);
         if (sleepTime < 1s) sleepTime *= 2;
+    }
+}
+
+static struct attropl *new_attropl()
+{
+    return new attropl{nullptr, nullptr, nullptr, nullptr, SET};
+}
+
+static void free_attropl_list(struct attropl *at_list)
+{
+    struct attropl *cur, *tmp;
+    for (cur = at_list; cur != NULL; cur = tmp) {
+        if (cur->resource != nullptr)
+            delete cur->resource;
+        if (cur->value != nullptr)
+            delete cur->value;
+        tmp = cur->next;
+        delete cur;
     }
 }
 
@@ -69,13 +93,45 @@ std::string PBS::submit(nix::StorePath drvPath)
     scriptOut << genScript(drvPath, rootPath);
     scriptOut.flush();
 
-    attropl aName = {nullptr, ATTR_N, nullptr, jobName, SET};
-    char kfVal[] = "oe";
+    // Attribute chain:
+    // v -> k -> N -> (l1/aResBase -> l2 -> l3 -> ...)
+
+    auto store = nix::openStore();
+    auto drv = store->readDerivation(drvPath);
+    std::string res = "";
+    attropl *aResBase = nullptr;
+    if (drv.env.count("pbsResources") == 1) {
+        json pbsResources = json::parse(drv.env["pbsResources"]);
+        attropl *prev = nullptr;
+        for (auto & [key, value] : pbsResources.items()) {
+            auto attr = new_attropl();
+            attr->name = ATTR_l;
+            // attr->resource = const_cast<char *>(key.data()); // The PBS API was apparently developed before const was invented. Or it's just bad.
+            // attr->value = std::string(value).data();
+            attr->resource = new char[key.size() + 1];
+            strncpy(attr->resource, key.data(), key.size());
+            attr->resource[key.size()] = '\0';
+            std::string strValue(value);
+            attr->value = new char[strValue.size() + 1];
+            strncpy(attr->value, strValue.data(), strValue.size());
+            attr->value[strValue.size()] = '\0';
+            if (!aResBase)
+                aResBase = attr;
+            else if (prev != nullptr)
+                prev->next = attr;
+            prev = attr;
+        }
+    }
+
+    attropl aName = {aResBase != nullptr ? aResBase : nullptr, ATTR_N, nullptr, jobName, SET};
+    char kfVal[] = "oe";  // Hush write-strings warning
     attropl aKeepFiles = {&aName, ATTR_k, nullptr, kfVal, SET};
     char pathVar[] = PATH_VAR;
     attropl aVariableList = {&aKeepFiles, ATTR_v, nullptr, pathVar, SET};
 
     char *id = pbs_submit(connHandle, &aVariableList, tmp_name, nullptr, nullptr);
+    free_attropl_list(aResBase);
+    aName.next = nullptr;
     if (id == nullptr) {
         if (auto err_list = pbs_get_attributes_in_error(connHandle)) {
             auto error = err_list->ecl_attrerr[0];
@@ -122,9 +178,9 @@ std::string PBS::submit(nix::StorePath drvPath)
             if (sleepTime < 1s) sleepTime *= 2;
         } else break;
     }
-    std::string value = serverStatus->attribs->value;
+    std::string host = serverStatus->attribs->value;
     pbs_statfree(serverStatus);
-    return value;
+    return host;
 }
 
 int PBS::waitForJobFinish()

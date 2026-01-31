@@ -35,7 +35,7 @@ runCommand "myjob" {
     };
   };
 } ''
-echo "Hello Slurm!"
+echo "Hello Slurm!" > $out
 ''
 ```
 
@@ -49,6 +49,19 @@ The current settings available for PBS are:
 - `pbs-port`: Port that the PBS server is listening on. Default: `15001`.
 
 If `pbs-host` is left unspecified, values for both the host and port are taken from `pbs.conf`.
+
+Job resources can be specified on a per-derivation basis via the `pbsResources` derivation attribute. All values should be strings. For example:
+
+```nix
+runCommand "myjob" {
+  pbsResources = builtins.toJSON {
+    ncpus = "4";
+    mem = "1gb";
+  };
+} ''
+echo "Hello PBS!" > $out
+''
+```
 
 ## Installation
 
