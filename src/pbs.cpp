@@ -66,7 +66,7 @@ PBS::PBS()
     if (ourSettings.pbsHost.get().empty())
         connHandle = pbs_connect(nullptr);
     else
-        connHandle = pbs_connect(nix::fmt("%s:%ul", ourSettings.pbsHost.get(), ourSettings.pbsPort.get()).c_str());
+        connHandle = pbs_connect(nix::fmt("%s:%u", ourSettings.pbsHost.get(), ourSettings.pbsPort.get()).c_str());
     if (connHandle == -1)
         throw PBSConnectionError(nix::fmt("Error connecting to PBS server: %d", pbs_errno));
 }
