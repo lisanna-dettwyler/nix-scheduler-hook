@@ -426,6 +426,11 @@ try {
             if (!store->queryRealisation(thisOutputId)) {
                 debug("missing output %s", outputName);
                 auto r = sshStore->queryRealisation(thisOutputId);
+                if (!r) {
+                    using namespace nix;
+                    printError("NSH Error: realisation for output %s not found on remote store", outputName);
+                    return 1;
+                }
                 missingRealisations.insert(*r);
                 missingPaths.insert(r->outPath);
             }
