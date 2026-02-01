@@ -23,11 +23,9 @@ public:
     {
         if (sshMaster) {
             for (auto & file : std::array<std::string, 2>{rootPath, jobStderr}) {
-                nix::Strings rmCmd = {"bash", "-c", "rm -fv " + file + "; echo done"};
+                nix::Strings rmCmd = {"rm", "-f", file};
                 auto cmd = sshMaster->startCommand(std::move(rmCmd));
-                auto cmdBuf = __gnu_cxx::stdio_filebuf<char>(cmd->out.release(), std::ios::in);
-                auto cmdStream = std::istream(&cmdBuf);
-                cmdStream.get();
+                cmd->sshPid.wait();
             }
         }
     }
