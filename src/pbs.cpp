@@ -81,11 +81,11 @@ std::string PBS::submit(nix::StorePath drvPath)
     rootPath = nix::fmt("%s.root", jobNameStr.data());
 
     char tmp_template[] = "pbsscrptXXXXXX";
-    char tmp_name[MAXPATHLEN + 1];
-    snprintf(tmp_name, sizeof(tmp_name), "%s/%s", std::filesystem::temp_directory_path().c_str(), tmp_template);
-    int fd = mkstemp(tmp_name);
+    snprintf(scriptName, sizeof(scriptName), "%s/%s", std::filesystem::temp_directory_path().c_str(), tmp_template);
+    int fd = mkstemp(scriptName);
     if (fd == -1)
-        throw PBSSubmitError(nix::fmt("Error creating temporary file for PBS script %s", tmp_name));
+        throw PBSSubmitError(nix::fmt("Error creating temporary file for PBS script %s", scriptName));
+    createdScript = true;
     __gnu_cxx::stdio_filebuf<char> scriptOutBuf(fd, std::ios::out);
     std::ostream scriptOut(&scriptOutBuf);
     scriptOut << genScript(drvPath, rootPath);
@@ -125,7 +125,7 @@ std::string PBS::submit(nix::StorePath drvPath)
     char pathVar[] = PATH_VAR;
     attropl aVariableList = {&aKeepFiles, ATTR_v, nullptr, pathVar, SET};
 
-    char *id = pbs_submit(connHandle, &aVariableList, tmp_name, nullptr, nullptr);
+    char *id = pbs_submit(connHandle, &aVariableList, scriptName, nullptr, nullptr);
     free_attropl_list(aResBase);
     aName.next = nullptr;
     if (id == nullptr) {
@@ -138,8 +138,6 @@ std::string PBS::submit(nix::StorePath drvPath)
     jobId = id;
 
     waitForJobRunning(connHandle, jobId);
-
-    unlink(tmp_name);
 
     attrl jobdirAttr = {nullptr, ATTR_jobdir, nullptr, nullptr, SET};
     batch_status *jobdirStatus;
@@ -200,6 +198,9 @@ int PBS::waitForJobFinish()
 
 PBS::~PBS()
 {
+    if (createdScript)
+        unlink(scriptName);
+
     if (!jobId.empty())
         pbs_deljob(connHandle, jobId.c_str(), nullptr);
 
