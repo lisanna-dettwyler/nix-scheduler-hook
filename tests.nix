@@ -178,11 +178,11 @@ in
             derivation {
               name = "test";
               builder = "/bin/sh";
-              args = ["-c" "echo something > $out"];
+              args = ["-c" "echo something > $out; echo something"];
               system = builtins.currentSystem;
               requiredSystemFeatures = [ "nsh" ];
               REBUILD = builtins.currentTime;
-            }'
+            }' 2>&1
       """
 
       submit.succeed("mkdir -p ~/.ssh")
@@ -193,7 +193,9 @@ in
       submit.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
 
       with subtest("run_nix_build_simple"):
-          submit.succeed(build_derivation_simple)
+          out = submit.succeed(build_derivation_simple)
+          print(out)
+          t.assertIn("something", out)
 
       build_derivation_deps = """
         nix-build \
@@ -203,7 +205,7 @@ in
               mkDrv = name: echo: derivation {
                 inherit name;
                 builder = "/bin/sh";
-                args = ["-c" ("echo " + echo + " > $out")];
+                args = ["-c" ("echo " + echo + " > $out; echo " + echo)];
                 system = builtins.currentSystem;
                 requiredSystemFeatures = ["nsh"];
               };
@@ -220,7 +222,7 @@ in
             derivation {
               name = "test";
               builder = "/bin/sh";
-              args = ["-c" "echo something > $out"];
+              args = ["-c" "echo something > $out; echo something"];
               system = builtins.currentSystem;
               requiredSystemFeatures = [ "unsupported" ];
             }'
@@ -236,7 +238,7 @@ in
             derivation {
               name = "test";
               builder = "/bin/sh";
-              args = ["-c" "echo something > $out"];
+              args = ["-c" "echo something > $out; echo something"];
               system = "bogus-system";
               requiredSystemFeatures = [ "nsh" ];
             }'
@@ -257,7 +259,9 @@ in
 
       with subtest("run_nix_build_custom_store"):
           submit.succeed("echo 'remote-store = /store' >> /etc/nix/nsh.conf")
-          submit.succeed(build_derivation_simple)
+          out = submit.succeed(build_derivation_simple)
+          print(out)
+          t.assertIn("something", out)
       submit.succeed("sed -i 's|/store|auto|g' /etc/nix/nsh.conf")
     '';
   };
@@ -344,15 +348,17 @@ in
             derivation {
               name = "test";
               builder = "/bin/sh";
-              args = ["-c" "echo something > $out"];
+              args = ["-c" "echo something > $out; echo something"];
               system = builtins.currentSystem;
               requiredSystemFeatures = [ "nsh" ];
               REBUILD = builtins.currentTime;
-            }'
+            }' 2>&1
       """
 
       with subtest("run_nix_build_simple"):
-          submit.succeed(build_derivation_simple)
+          out = submit.succeed(build_derivation_simple)
+          print(out)
+          t.assertIn("something", out)
 
       build_derivation_deps = """
         nix-build \
@@ -362,7 +368,7 @@ in
               mkDrv = name: echo: derivation {
                 inherit name;
                 builder = "/bin/sh";
-                args = ["-c" ("echo " + echo + " > $out")];
+                args = ["-c" ("echo " + echo + " > $out; echo " + echo)];
                 system = builtins.currentSystem;
                 requiredSystemFeatures = ["nsh"];
                 REBUILD = builtins.currentTime;
