@@ -6,9 +6,6 @@
 #include <nix/store/path.hh>
 #include <nix/store/build-result.hh>
 
-#include <restclient-cpp/connection.h>
-#include <restclient-cpp/restclient.h>
-
 struct SlurmAuthenticationError : public std::runtime_error
 {
     explicit SlurmAuthenticationError(const std::string &s) : std::runtime_error(s) {}

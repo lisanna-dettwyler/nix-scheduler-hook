@@ -15,6 +15,9 @@ using namespace std::chrono_literals;
 #include <nlohmann/json.hpp>
 using namespace nlohmann;
 
+#include <restclient-cpp/connection.h>
+#include <restclient-cpp/restclient.h>
+
 #include <nix/store/store-open.hh>
 #include <nix/store/store-api.hh>
 #include <nix/store/derivations.hh>
