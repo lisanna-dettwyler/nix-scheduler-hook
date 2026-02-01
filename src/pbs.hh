@@ -37,4 +37,6 @@ public:
     int waitForJobFinish();
 protected:
     int connHandle;
+    char scriptName[MAXPATHLEN + 1];
+    bool createdScript = false;
 };
