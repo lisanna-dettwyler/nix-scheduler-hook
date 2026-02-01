@@ -22,9 +22,8 @@ static std::string getJobState(int conn, std::string jobId)
 {
     attrl attr = {nullptr, ATTR_state, nullptr, nullptr, SET};
     batch_status *status = pbs_statjob(conn, jobId.data(), &attr, "x");
-    if (status == nullptr) {
+    if (status == nullptr || status->attribs == nullptr)
         throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_state, jobId, pbs_errno));
-    }
     std::string value = status->attribs->value;
     pbs_statfree(status);
     return value;
@@ -191,6 +190,8 @@ int PBS::waitForJobFinish()
         if (state == "F") {
             attrl exitAttr = {nullptr, ATTR_exit_status, nullptr, nullptr, SET};
             batch_status *exitStatus = pbs_statjob(connHandle, jobId.data(), &exitAttr, "x");
+            if (exitStatus == nullptr || exitStatus->attribs == nullptr)
+                throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_exit_status, jobId, pbs_errno));
             auto value = std::atoi(exitStatus->attribs->value);
             pbs_statfree(exitStatus);
             return value;
