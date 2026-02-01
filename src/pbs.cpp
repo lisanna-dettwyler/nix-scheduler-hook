@@ -74,12 +74,11 @@ PBS::PBS()
 std::string PBS::submit(nix::StorePath drvPath)
 {
     auto jobNameStr = nix::fmt("Nix_Build_%s", std::string(drvPath.to_string()));
-    char *jobName = jobNameStr.data();
 
     // We don't know the jobdir until after the job is running, so use a
     // relative path for the script generation and update it to an absolute
     // path after submission.
-    rootPath = nix::fmt("%s.root", jobName);
+    rootPath = nix::fmt("%s.root", jobNameStr.data());
 
     char tmp_template[] = "pbsscrptXXXXXX";
     char tmp_name[MAXPATHLEN + 1];
@@ -122,7 +121,7 @@ std::string PBS::submit(nix::StorePath drvPath)
         }
     }
 
-    attropl aName = {aResBase != nullptr ? aResBase : nullptr, ATTR_N, nullptr, jobName, SET};
+    attropl aName = {aResBase != nullptr ? aResBase : nullptr, ATTR_N, nullptr, jobNameStr.data(), SET};
     char kfVal[] = "oe";  // Hush write-strings warning
     attropl aKeepFiles = {&aName, ATTR_k, nullptr, kfVal, SET};
     char pathVar[] = PATH_VAR;
@@ -161,8 +160,8 @@ std::string PBS::submit(nix::StorePath drvPath)
     pbs_statfree(jobdirStatus);
 
     auto jobIdNum = nix::tokenizeString<nix::Strings>(jobId, ".").front();
-    jobStderr = nix::fmt("%s/%s.e%s", jobDir, jobName, jobIdNum);
-    rootPath = nix::fmt("%s/%s.root", jobDir, jobName);
+    jobStderr = nix::fmt("%s/%s.e%s", jobDir, jobNameStr, jobIdNum);
+    rootPath = nix::fmt("%s/%s.root", jobDir, jobNameStr);
 
     attrl serverAttr = {nullptr, ATTR_server, nullptr, nullptr, SET};
     sleepTime = 50ms;
