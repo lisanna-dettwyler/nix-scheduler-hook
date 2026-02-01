@@ -25,6 +25,9 @@ using namespace std::chrono_literals;
 #include <nix/util/util.hh>
 #include <nix/util/hash.hh>
 #include <nix/util/signals-impl.hh>
+#include <nix/util/processes.hh>
+#include <nix/util/environment-variables.hh>
+#include <nix/util/config-global.hh>
 
 #include "settings.hh"
 #include "slurm.hh"
@@ -50,6 +53,98 @@ static void sigHandler(int signo)
 {
     throw SigHandlerExit();
 }
+
+std::filesystem::path getBuildRemoteFromNixBin(std::filesystem::path nixBin)
+{
+    if (std::filesystem::is_symlink(nixBin))
+        nixBin = std::filesystem::read_symlink(nixBin);
+    return nixBin.parent_path().parent_path() / "libexec" / "nix" / "build-remote";
+}
+
+struct FallbackHookInstance
+{
+    FallbackHookInstance(
+      int amWilling,
+      std::string neededSystem,
+      std::string drvPath,
+      nix::StringSet requiredFeatures,
+      nix::FdSource & source
+    ) {
+        toHook.create();
+
+        pid = nix::startProcess([&]() {
+            if (dup2(toHook.readSide.get(), STDIN_FILENO) == -1)
+                throw nix::SysError("redirecting NSH's toHook to build-remote's STDIN");
+
+            std::filesystem::path nixBinPath = "nix";
+            auto nixBinDirOpt = nix::getEnvNonEmpty("NIX_BIN_DIR");
+            if (nixBinDirOpt)
+                nixBinPath = std::filesystem::path(*nixBinDirOpt) / "nix";
+
+            nix::Strings args{nixBinPath.filename().string(), "__build-remote", std::to_string(nix::verbosity)};
+            execvp(nixBinPath.native().c_str(), nix::stringsToCharPtrs(args).data());
+
+            // If nix __build-remote doesn't work, try the legacy libexec/nix/build-remote symlink
+            std::filesystem::path buildRemotePath;
+            if (nixBinDirOpt) {
+                std::filesystem::path nixBin = std::filesystem::path(*nixBinDirOpt) / "nix";
+                if (std::filesystem::exists(nixBin))
+                    buildRemotePath = getBuildRemoteFromNixBin(nixBin);
+            }
+            else if (auto pathOpt = nix::getEnvNonEmpty("PATH")) {
+                auto paths = nix::tokenizeString<nix::Strings>(*pathOpt, ":");
+                for (auto path : paths) {
+                    std::filesystem::path nixBin = std::filesystem::path(path) / "nix";
+                    if (std::filesystem::exists(nixBin)) {
+                        buildRemotePath = getBuildRemoteFromNixBin(nixBin);
+                        break;
+                    }
+                }
+            }
+            if (!buildRemotePath.empty()) {
+                nix::Strings args2{buildRemotePath.filename().string(), std::to_string(nix::verbosity)};
+                execv(buildRemotePath.native().c_str(), nix::stringsToCharPtrs(args2).data());
+            }
+
+            throw nix::SysError("executing normal build hook");
+        });
+
+        toHook.readSide = -1;
+
+        sink = nix::FdSink(toHook.writeSide.get());
+        std::map<std::string, nix::Config::SettingInfo> settings;
+        nix::globalConfig.getSettings(settings);
+        for (auto & setting : settings)
+            sink << 1 << setting.first << setting.second.value;
+        sink << 0;
+
+        sink << "try" << amWilling << neededSystem << drvPath << requiredFeatures;
+        sink.flush();
+
+        auto inputs = nix::readStrings<nix::PathSet>(source);
+        auto wantedOutputs = nix::readStrings<nix::StringSet>(source);
+
+        sink << inputs << wantedOutputs;
+        sink.flush();
+    }
+
+    int wait()
+    {
+        return pid.wait();
+    }
+
+    ~FallbackHookInstance()
+    {
+        if (pid != -1) {
+            pid.kill();
+            pid.wait();
+        }
+    }
+
+    nix::Pipe toHook;
+    nix::Pid pid;
+    nix::FdSink sink;
+};
 
 int main(int argc, char **argv)
 {
@@ -102,22 +197,22 @@ try {
     else
         currentLoad = nix::settings.nixStateDir + currentLoadName;
 
-    // amWilling (unused)
-    nix::readInt(source);
+    int amWilling = nix::readInt(source);
 
     ::loadConfFile(ourSettings);
 
     auto neededSystem = nix::readString(source);
+    nix::StorePath drvPath = store->parseStorePath(nix::readString(source));
+    auto requiredFeatures = nix::readStrings<nix::StringSet>(source);
+
+    bool tryFallback = false;
+
     if (neededSystem != ourSettings.system.get()) {
         using namespace nix;
         printError("needed system %s does not match our system %s", neededSystem, ourSettings.system.get());
-        std::cerr << "# decline\n";
-        return 0;
+        tryFallback = true;
     }
 
-    nix::StorePath drvPath = store->parseStorePath(readString(source));
-
-    auto requiredFeatures = nix::readStrings<nix::StringSet>(source);
     auto systemFeatures = ourSettings.systemFeatures.get();
     for (auto & feature : requiredFeatures) {
         if (systemFeatures.find(feature) == systemFeatures.end()) {
@@ -126,6 +221,17 @@ try {
             for (auto & f : systemFeatures) {
                 printError(f);
             }
+            tryFallback = true;
+        }
+    }
+
+    if (tryFallback) {
+        try {
+            nix::Activity act(*nix::logger, nix::lvlInfo, nix::actUnknown, "falling back to normal build hook");
+            return FallbackHookInstance(amWilling, neededSystem, store->printStorePath(drvPath), requiredFeatures, source).wait();
+        } catch (std::exception & e) {
+            using namespace nix;
+            printError("NSH Error: unable to fallback to normal build hook: %s", e.what());
             std::cerr << "# decline\n";
             return 0;
         }

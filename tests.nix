@@ -64,6 +64,101 @@ let
       hostToGuest.${hostPlatform.system} or (throw message);
 in
 {
+  fallbackTests = testers.nixosTest {
+    name = "Fallback Tests";
+    interactive.sshBackdoor.enable = true;
+    nodes.submit = {
+      environment.systemPackages = [ gdb ];
+      services.openssh.enable = true;
+      nix.settings.substitute = false;
+      nix.settings.build-hook = "${nix-scheduler-hook}/bin/nsh";
+      nix.distributedBuilds= true;
+      nix.buildMachines = [ {
+        hostName = "builder";
+        system = guestSystem;
+        protocol = "ssh-ng";
+        maxJobs = 1;
+        mandatoryFeatures = [ "build" ];
+      }];
+    };
+    nodes.builder = {
+      services.openssh.enable = true;
+      users.users.root.openssh.authorizedKeys.keys = [
+        snakeOilPublicKey
+      ];
+      nix.settings.substitute = false;
+      nix.settings.system-features = [ "build" ];
+    };
+    testScript = ''
+      start_all();
+      submit.succeed("mkdir -p /etc/nix")
+      submit.succeed("echo 'system = bogus' >> /etc/nix/nsh.conf")
+      submit.succeed("cat ${snakeOilPrivateKey} > ~/.ssh/privkey.snakeoil")
+      submit.succeed("chmod 600 ~/.ssh/privkey.snakeoil")
+      submit.succeed("echo 'Host builder' >> ~/.ssh/config")
+      submit.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
+      submit.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
+      submit.wait_for_unit("multi-user.target")
+      builder.wait_for_unit("multi-user.target")
+
+      build_derivation_simple = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          -E '
+            derivation {
+              name = "test";
+              builder = "/bin/sh";
+              args = ["-c" "echo something > $out; echo something"];
+              system = builtins.currentSystem;
+              requiredSystemFeatures = [ "build" ];
+              REBUILD = builtins.currentTime;
+            }' 2>&1
+      """
+
+      with subtest("run_nix_build_simple"):
+          out = submit.succeed(build_derivation_simple)
+          print(out)
+          t.assertIn("something", out)
+
+      build_derivation_deps = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          -E '
+            let
+              mkDrv = name: echo: derivation {
+                inherit name;
+                builder = "/bin/sh";
+                args = ["-c" ("echo " + echo + " > $out; echo " + echo)];
+                system = builtins.currentSystem;
+                requiredSystemFeatures = ["build"];
+                REBUILD = builtins.currentTime;
+              };
+            in mkDrv "test-deps" ((mkDrv "dep1" "dep1") + (mkDrv "dep2" "dep2") + (mkDrv "dep3" "dep3"))'
+      """
+
+      with subtest("run_nix_build_deps"):
+          submit.succeed(build_derivation_deps)
+
+      build_derivation_local = """
+        nix-build -vv \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          -E '
+            derivation {
+              name = "test";
+              builder = "/bin/sh";
+              args = ["-c" "echo something > $out; echo something"];
+              system = builtins.currentSystem;
+              REBUILD = builtins.currentTime;
+            }' 2>&1
+      """
+
+      with subtest("run_nix_build_local"):
+          out = submit.succeed(build_derivation_local)
+          print(out)
+          t.assertIn("Failed to find a machine for remote build!", out)
+    '';
+  };
+
   slurmTests = testers.nixosTest {
     name = "Basic Slurm Tests";
     interactive.sshBackdoor.enable = true;
