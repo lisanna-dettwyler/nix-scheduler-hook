@@ -104,8 +104,6 @@ std::string PBS::submit(nix::StorePath drvPath)
         for (auto & [key, value] : pbsResources.items()) {
             auto attr = new_attropl();
             attr->name = ATTR_l;
-            // attr->resource = const_cast<char *>(key.data()); // The PBS API was apparently developed before const was invented. Or it's just bad.
-            // attr->value = std::string(value).data();
             attr->resource = new char[key.size() + 1];
             strncpy(attr->resource, key.data(), key.size());
             attr->resource[key.size()] = '\0';
