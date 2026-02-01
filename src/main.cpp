@@ -423,9 +423,9 @@ try {
         for (auto & outputName : wantedOutputs) {
             auto thisOutputHash = outputHashes.at(outputName);
             auto thisOutputId = DrvOutput{thisOutputHash, outputName};
-            auto r = store->queryRealisation(thisOutputId);
-            if (!r) {
+            if (!store->queryRealisation(thisOutputId)) {
                 debug("missing output %s", outputName);
+                auto r = sshStore->queryRealisation(thisOutputId);
                 missingRealisations.insert(*r);
                 missingPaths.insert(r->outPath);
             }
