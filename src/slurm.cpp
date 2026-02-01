@@ -180,7 +180,12 @@ int Slurm::waitForJobFinish()
 
 Slurm::~Slurm()
 {
-    if (jobId != "" && isLive(getJobState(jobId))) {
-        getConn()->del("/slurm/v0.0.43/job/" + jobId);
+    try {
+        if (jobId != "" && isLive(getJobState(jobId))) {
+            getConn()->del("/slurm/v0.0.43/job/" + jobId);
+        }
+    } catch (std::exception & e) {
+        using namespace nix;
+        printError("NSH Error: error during Slurm teardown: %s", e.what());
     }
 }
