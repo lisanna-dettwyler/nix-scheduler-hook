@@ -13,7 +13,6 @@ bool handleOutput(std::ostream & logOs, std::string_view data)
     static unsigned long logSize = 0;
     static size_t currentLogLinePos = 0;
     static std::string currentLogLine;
-    static std::string currentHookLine;
     logSize += data.size();
     if (settings.maxLogSize && logSize > settings.maxLogSize) {
         throw BuildError(
