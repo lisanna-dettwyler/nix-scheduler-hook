@@ -32,6 +32,7 @@ using namespace std::chrono_literals;
 #include "settings.hh"
 #include "slurm.hh"
 #include "pbs.hh"
+#include "slurm-native.hh"
 #include "logging.hh"
 
 static void handleAlarm(int sig) {}
@@ -241,6 +242,8 @@ try {
     try {
         if (ourSettings.jobScheduler.get() == "slurm") {
             scheduler = std::make_unique<Slurm>();
+        } else if (ourSettings.jobScheduler.get() == "slurm-native") {
+            scheduler = std::make_unique<SlurmNative>();
         } else if (ourSettings.jobScheduler.get() == "pbs") {
             scheduler = std::make_unique<PBS>();
         } else {

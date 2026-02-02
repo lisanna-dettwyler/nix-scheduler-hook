@@ -54,6 +54,13 @@ struct Settings : public nix::Config
         "Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed."
     };
 
+    nix::Setting<std::string> slurmConf {
+        this,
+        "",
+        "slurm-conf",
+        "Path to slurm.conf, used by the slurm-native scheduler implementation. If unset, Slurm will attempt to locate it automatically."
+    };
+
     nix::Setting <std::string> slurmStateDir {
         this,
         "",

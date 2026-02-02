@@ -4,7 +4,7 @@ This is a build hook that allows Nix builds to be forwarded to clusters running 
 
 General settings:
 
-- `job-scheduler`: Which job scheduler to use, available choices are 'slurm' and 'pbs'. Default: `slurm`.
+- `job-scheduler`: Which job scheduler to use, available choices are 'slurm', 'slurm-native', and 'pbs'. Default: `slurm`.
 - `system`: The system type of this cluster, jobs requiring a different system will not be routed to the scheduler. Default: `x86_64-linux`.
 - `system-features`: Optional system features supported by the machines in the cluster. Can be used to force derivations to build only via nix-scheduler-hook by adding 'nsh' as a required system feature. Default: `nsh`.
 - `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
@@ -25,7 +25,7 @@ The current settings available for Slurm are:
 - `slurm-jwt-token` (required if using Slurm): JWT token for authentication to the Slurm REST API.
 - `slurm-extra-submission-params`: Extra parameters to set in the `/job/submit` API request, as a JSON dictionary that will be merged with the 'job' value in the [`job_submit_req`](https://slurm.schedmd.com/rest_api.html#v0.0.44_job_submit_req) object. Takes precedence over parameters specified at the derivation level.
 
-Extra job parameters to control things like required CPU count and memory can also be specified on a per-derivation basis. For Slurm, this can be set in the `extraSlurmParams` attribute of a derivation, and it functions exactly like the `slurm-extra-submission-params` setting. For example:
+Extra job parameters to control things like required CPU count and memory (in megabytes) can also be specified on a per-derivation basis. For Slurm, this can be set in the `extraSlurmParams` attribute of a derivation, and it functions exactly like the `slurm-extra-submission-params` setting. For example:
 
 ```nix
 runCommand "myjob" {
@@ -38,6 +38,30 @@ runCommand "myjob" {
   };
 } ''
 echo "Hello Slurm!" > $out
+''
+```
+
+If `slurmrestd` is not available, you can use the 'slurm-native' scheduler instead, which uses libslurm. The settings available are:
+
+- `slurm-state-dir` (required): Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons.
+- `slurm-conf`: Path to slurm.conf. If unset, Slurm will attempt to locate it automatically.
+
+Using Slurm through the REST API allows the most flexibility with specifying job parameters. When using the native version, the following job constraints can be specified on a per-derivation basis through the `slurmNativeConstraints` attribute:
+
+- `cpus`: The number of CPUs required by the job.
+- `memPerNode`: The minimum real memory in megabytes required for the node the job runs on.
+- `memPerCPU`: The minimum real memory in megabytes required for each CPU. Mutually exclusive with `memPerNode`.
+
+Example:
+
+```nix
+runCommand "myjob" {
+  slurmNativeConstraints = builtins.toJSON {
+    cpus = 4;
+    memPerNode = 8192;
+  };
+} ''
+echo "Hello Slurm Native!" > $out
 ''
 ```
 
