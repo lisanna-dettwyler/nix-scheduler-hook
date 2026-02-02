@@ -21,12 +21,17 @@ public:
     Scheduler() {}
     virtual ~Scheduler()
     {
-        if (sshMaster) {
-            for (auto & file : std::array<std::string, 2>{rootPath, jobStderr}) {
-                nix::Strings rmCmd = {"rm", "-f", file};
-                auto cmd = sshMaster->startCommand(std::move(rmCmd));
-                cmd->sshPid.wait();
+        try {
+            if (sshMaster) {
+                for (auto & file : std::array<std::string, 2>{rootPath, jobStderr}) {
+                    nix::Strings rmCmd = {"rm", "-f", file};
+                    auto cmd = sshMaster->startCommand(std::move(rmCmd));
+                    cmd->sshPid.wait();
+                }
             }
+        } catch (std::exception & e) {
+            using namespace nix;
+            printError("NSH Error: error during Scheduler teardown: %s", e.what());
         }
     }
 
