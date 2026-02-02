@@ -9,6 +9,7 @@ General settings:
 - `system-features`: Optional system features supported by the machines in the cluster. Can be used to force derivations to build only via nix-scheduler-hook by adding 'nsh' as a required system feature. Default: `nsh`.
 - `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
 - `remote-store`: The store URL to be used on the remote machine. See: [https://nix.dev/manual/nix/latest/store/types/](https://nix.dev/manual/nix/latest/store/types/). Default: `auto`.
+- `remote-nix-bin-dir`: Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed (see below).
 
 ## Supported Job Schedulers
 
@@ -71,6 +72,31 @@ After building from source, edit your `nix.conf` and set `build-hook = /path/to/
 ## Fallback to Normal Build Hook
 
 If NSH would decline a build, instead of simply declining, it attempts to launch the normal build hook and forwards it the build details. The normal build hook will then either accept or decline the build.
+
+## Usage on Clusters Without Nix Installed
+
+It is possible to use this hook to submit jobs to clusters without Nix installed, it just requires a small amount of one-time setup.
+
+Start on a machine that *does* have Nix installed and that can connect to a cluster login node to access your home directory. Download the package `nixStatic` on this machine, being sure to specify a system matching the cluster. This is especially important if, for example, you are on a Mac but your cluster is running Linux.
+
+```bash
+nix build --system x86_64-linux nixpkgs#nixStatic
+```
+
+Next, copy Nix Static from your machine to your home directory on the cluster (or a shared location you have access to).
+
+```bash
+scp -r ./result login.example.com:/home/you/nix-static
+```
+
+Configure your `nsh.conf` file with the following settings:
+
+```conf
+remote-store = /home/you/store
+remote-nix-bin-dir = /home/you/nix-static/bin
+```
+
+This will cause NSH to invoke the Nix Static binaries on the remote machine when performing a build and copying dependencies and results.
 
 ## Known Limitations
 
