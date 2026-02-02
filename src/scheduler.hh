@@ -45,7 +45,7 @@ public:
      * @return Hostname of the node assigned to the job. */
     std::string startBuild(nix::StorePath drvPath)
     {
-        hostname = submit(drvPath);
+        submit(drvPath);
         storeUri = "ssh-ng://" + hostname;
         {
             nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
@@ -60,9 +60,8 @@ public:
         return hostname;
     }
 
-    /* Submits a derivation for building.
-     * @return Hostname of the node assigned to the job. */
-    virtual std::string submit(nix::StorePath drvPath) = 0;
+    /* Submits a derivation for building. */
+    virtual void submit(nix::StorePath drvPath) = 0;
 
     /* Waits for the submitted job to finish.
      * @return Exit code of job, or -1 if abnormal termination (e.g. cancelled). */

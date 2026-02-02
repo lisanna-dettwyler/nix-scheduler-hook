@@ -71,7 +71,7 @@ PBS::PBS()
         throw PBSConnectionError(nix::fmt("Error connecting to PBS server: %d", pbs_errno));
 }
 
-std::string PBS::submit(nix::StorePath drvPath)
+void PBS::submit(nix::StorePath drvPath)
 {
     auto jobNameStr = nix::fmt("Nix_Build_%s", std::string(drvPath.to_string()));
 
@@ -172,9 +172,8 @@ std::string PBS::submit(nix::StorePath drvPath)
             if (sleepTime < 1s) sleepTime *= 2;
         } else break;
     }
-    std::string host = serverStatus->attribs->value;
+    hostname = serverStatus->attribs->value;
     pbs_statfree(serverStatus);
-    return host;
 }
 
 int PBS::waitForJobFinish()
