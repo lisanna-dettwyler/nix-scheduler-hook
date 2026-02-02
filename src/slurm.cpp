@@ -22,6 +22,8 @@ using namespace nlohmann;
 #include <nix/store/store-api.hh>
 #include <nix/store/derivations.hh>
 
+constexpr std::string_view SLURM_API_VERSION = "v0.0.43";
+
 static std::shared_ptr<RestClient::Connection> getConn()
 {
     static bool init = false;
@@ -72,7 +74,7 @@ void Slurm::submit(nix::StorePath drvPath)
     }
 
     auto conn = getConn();
-    RestClient::Response r = conn->post("/slurm/v0.0.43/job/submit", req.dump());
+    RestClient::Response r = conn->post("/slurm/" + SLURM_API_VERSION + "/job/submit", req.dump());
     if (r.body == "Authentication failure") {
         throw SlurmAuthenticationError(r.body);
     }
@@ -89,7 +91,7 @@ void Slurm::submit(nix::StorePath drvPath)
     bool foundBatchHost = false;
     auto sleepTime = 50ms;
     while (!foundBatchHost) {
-        RestClient::Response qr = conn->get("/slurm/v0.0.43/job/" + jobId);
+        RestClient::Response qr = conn->get("/slurm/" + SLURM_API_VERSION + "/job/" + jobId);
         json qresp = json::parse(qr.body);
         if (qresp["errors"].size() > 0) {
             throw SlurmAPIError(nix::fmt("%s (%d): %s",
@@ -119,7 +121,7 @@ static std::string getJobState(std::string jobId)
 {
     auto sleepTime = 50ms;
     while (true) {
-        RestClient::Response qr = getConn()->get("/slurm/v0.0.43/job/" + jobId);
+        RestClient::Response qr = getConn()->get("/slurm/" + SLURM_API_VERSION + "/job/" + jobId);
         json qresp = json::parse(qr.body);
         if (qresp["errors"].size() > 0) {
             throw SlurmAPIError(nix::fmt("%s (%d): %s",
@@ -138,7 +140,7 @@ static std::string getJobState(std::string jobId)
 static uint32_t getJobReturnCode(std::string jobId)
 {
     while (true) {
-        RestClient::Response qr = getConn()->get("/slurm/v0.0.43/job/" + jobId);
+        RestClient::Response qr = getConn()->get("/slurm/" + SLURM_API_VERSION + "/job/" + jobId);
         json qresp = json::parse(qr.body);
         if (qresp["errors"].size() > 0) {
             throw SlurmAPIError(nix::fmt("%s (%d): %s",
@@ -180,7 +182,7 @@ Slurm::~Slurm()
 {
     try {
         if (jobId != "" && isLive(getJobState(jobId))) {
-            getConn()->del("/slurm/v0.0.43/job/" + jobId);
+            getConn()->del("/slurm/" + SLURM_API_VERSION + "/job/" + jobId);
         }
     } catch (std::exception & e) {
         using namespace nix;
