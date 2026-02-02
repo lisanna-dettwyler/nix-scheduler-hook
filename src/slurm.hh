@@ -26,6 +26,6 @@ class Slurm : public Scheduler
 public:
     Slurm();
     ~Slurm();
-    std::string submit(nix::StorePath drvPath);
+    void submit(nix::StorePath drvPath);
     int waitForJobFinish();
 };

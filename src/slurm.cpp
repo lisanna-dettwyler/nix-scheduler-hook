@@ -39,7 +39,7 @@ static std::shared_ptr<RestClient::Connection> getConn()
     return conn;
 }
 
-std::string Slurm::submit(nix::StorePath drvPath)
+void Slurm::submit(nix::StorePath drvPath)
 {
     rootPath = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
     jobStderr = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
@@ -108,8 +108,6 @@ std::string Slurm::submit(nix::StorePath drvPath)
             if (sleepTime < 1s) sleepTime *= 2;
         }
     }
-
-    return hostname;
 }
 
 static bool isLive(std::string state)
