@@ -220,7 +220,7 @@ in
           };
 
         submit =
-          { ... }:
+          { config, ... }:
           {
             imports = [ slurmconfig ];
             nix.settings.build-hook = "${nix-scheduler-hook}/bin/nsh";
@@ -228,6 +228,7 @@ in
             services.slurm.rest.enable = true;
             # services.slurm.rest.debug = "debug";
             virtualisation.memorySize = 4096;
+            environment.variables.SLURM_CONF = "${config.services.slurm.etcSlurm}/slurm.conf";
           };
 
         node1 = computeNode;
@@ -286,6 +287,17 @@ in
       submit.succeed("echo 'Host node*' >> ~/.ssh/config")
       submit.succeed("echo '  IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
       submit.succeed("echo '  StrictHostKeyChecking no' >> ~/.ssh/config")
+
+      with subtest("run_nix_build_simple_native"):
+          submit.systemctl("stop slurmrestd.service")
+          submit.succeed("echo 'job-scheduler = slurm-native' >> /etc/nix/nsh.conf")
+          submit.succeed("echo \"slurm-conf = $SLURM_CONF\" >> /etc/nix/nsh.conf")
+          out = submit.succeed(build_derivation_simple)
+          print(out)
+          t.assertIn("something", out)
+      submit.succeed("sed -i '/job-scheduler/d' /etc/nix/nsh.conf")
+      submit.systemctl("start slurmrestd.service")
+      submit.wait_for_unit("slurmrestd.service")
 
       with subtest("run_nix_build_simple"):
           out = submit.succeed(build_derivation_simple)

@@ -15,6 +15,9 @@ boost_dep = dependency('boost', modules : ['fusion'])
 
 pbs_dep = dependency('pbs')
 
+compiler = meson.get_compiler('cpp')
+slurm_dep = compiler.find_library('slurm', has_headers: ['slurm/slurm.h'])
+
 nix_util_dep = dependency('nix-util', method: 'pkg-config')
 nix_store_dep = dependency('nix-store', method: 'pkg-config')
 nix_main_dep = dependency('nix-main', method: 'pkg-config')
@@ -24,6 +27,7 @@ sources = files(
     'settings.cpp',
     'slurm.cpp',
     'pbs.cpp',
+    'slurm-native.cpp',
 )
 
 executable('nsh', sources, dependencies : [
@@ -31,6 +35,7 @@ executable('nsh', sources, dependencies : [
     json_dep,
     boost_dep,
     pbs_dep,
+    slurm_dep,
     nix_util_dep,
     nix_store_dep,
     nix_main_dep

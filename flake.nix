@@ -64,6 +64,13 @@
         default = nix-scheduler-hook;
         nix-scheduler-hook = import ./default.nix {
           inherit pkgs openpbs;
+          slurm = with pkgs; symlinkJoin {
+            name = "slurm";
+            paths = [
+              slurm
+              slurm.dev
+            ];
+          };
           restclient-cpp = inputs.restclient-cpp;
         };
       };
