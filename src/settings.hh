@@ -47,6 +47,13 @@ struct Settings : public nix::Config
         "The store URL to be used on the remote machine. Should be set to 'auto' if using the nix-daemon."
     };
 
+    nix::Setting<std::string> remoteNixBinDir {
+        this,
+        "",
+        "remote-nix-bin-dir",
+        "Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed."
+    };
+
     nix::Setting <std::string> slurmStateDir {
         this,
         "",

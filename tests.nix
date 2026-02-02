@@ -357,7 +357,21 @@ in
           out = submit.succeed(build_derivation_simple)
           print(out)
           t.assertIn("something", out)
-      submit.succeed("sed -i 's|/store|auto|g' /etc/nix/nsh.conf")
+
+      with subtest("run_nix_build_static"):
+          for node in [node1, node2, node3]:
+              node.succeed("mount -t tmpfs hide-nix ${pkgs.nix}")
+              node.fail("nix --version")
+          submit.succeed("echo 'remote-nix-bin-dir = %s' >> /etc/nix/nsh.conf" % "${pkgs.nixStatic}/bin")
+          out = submit.succeed(build_derivation_simple)
+          print(out)
+          t.assertIn("something", out)
+
+      for node in [node1, node2, node3]:
+          node.succeed("umount hide-nix")
+          node.succeed("nix --version")
+      submit.succeed("sed -i '/remote-store/d' /etc/nix/nsh.conf")
+      submit.succeed("sed -i '/remote-nix-bin-dir/d' /etc/nix/nsh.conf")
     '';
   };
 

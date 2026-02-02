@@ -274,6 +274,8 @@ try {
         nix::Activity act(*nix::logger, nix::lvlTalkative, nix::actUnknown, nix::fmt("connecting to '%s'", storeUri));
         try {
             nix::StoreReference::Params params = {{"remote-store", ourSettings.remoteStore.get()}};
+            if (ourSettings.remoteNixBinDir.get() != "")
+                params["remote-program"] = ourSettings.remoteNixBinDir.get() + "/nix-daemon";
             sshStore = nix::openStore(storeUri, params);
             sshStore->connect();
         } catch (std::exception & e) {
