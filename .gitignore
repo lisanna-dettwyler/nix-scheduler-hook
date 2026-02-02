@@ -1,5 +1,8 @@
-./result*
-./build
-./*-source
-./source
-./subprojects
+/result*
+/build
+/*-source
+/source
+/subprojects
+/src/subprojects
+.envrc
+.direnv
