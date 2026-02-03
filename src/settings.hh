@@ -16,7 +16,7 @@ struct Settings : public nix::Config
         this,
         "slurm",
         "job-scheduler",
-        "Which job scheduler to use, available choices are 'slurm' and 'pbs'."
+        "Which job scheduler to use, available choices are 'slurm', 'slurm-native', and 'pbs'."
     };
 
     nix::Setting <std::string> system {
