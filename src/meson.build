@@ -6,8 +6,8 @@ project(
 )
 cmake = import('cmake')
 
-rectclient_proj = cmake.subproject('restclient-cpp')
-restclient_dep = rectclient_proj.dependency('restclient-cpp')
+restclient_proj = cmake.subproject('restclient-cpp')
+restclient_dep = restclient_proj.dependency('restclient-cpp')
 
 json_dep = dependency('nlohmann_json')
 
