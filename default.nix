@@ -1,4 +1,4 @@
-{ pkgs, restclient-cpp, openpbs, slurm }:
+{ pkgs, restclient-cpp, openpbs, slurm, ocs }:
 with pkgs;
 stdenv.mkDerivation {
   name = "nix-scheduler-hook";
@@ -20,6 +20,7 @@ stdenv.mkDerivation {
     nlohmann_json
     openpbs
     slurm
+    ocs
   ];
 
   postUnpack = ''

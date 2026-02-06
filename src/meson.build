@@ -17,6 +17,7 @@ pbs_dep = dependency('pbs')
 
 compiler = meson.get_compiler('cpp')
 slurm_dep = compiler.find_library('slurm', has_headers: ['slurm/slurm.h'])
+drmaa_dep = compiler.find_library('drmaa', has_headers: ['drmaa.h'])
 
 nix_util_dep = dependency('nix-util', method: 'pkg-config')
 nix_store_dep = dependency('nix-store', method: 'pkg-config')
@@ -28,6 +29,7 @@ sources = files(
     'slurm.cpp',
     'pbs.cpp',
     'slurm-native.cpp',
+    'grid.cpp',
 )
 
 executable('nsh', sources, dependencies : [
@@ -36,6 +38,7 @@ executable('nsh', sources, dependencies : [
     boost_dep,
     pbs_dep,
     slurm_dep,
+    drmaa_dep,
     nix_util_dep,
     nix_store_dep,
     nix_main_dep

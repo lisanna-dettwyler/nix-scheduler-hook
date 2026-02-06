@@ -33,6 +33,22 @@
         "type": "github"
       }
     },
+    "ocs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770022002,
+        "narHash": "sha256-6jKulVch7V+V48vC8jz0aHp5hIqMxDkYkpIse0+gxSY=",
+        "owner": "hpc-gridware",
+        "repo": "clusterscheduler",
+        "rev": "4396a7185e27b4dc2aab55d866df2f5fa0d0b2f2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hpc-gridware",
+        "repo": "clusterscheduler",
+        "type": "github"
+      }
+    },
     "openpbs": {
       "flake": false,
       "locked": {
@@ -69,6 +85,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
+        "ocs": "ocs",
         "openpbs": "openpbs",
         "restclient-cpp": "restclient-cpp"
       }

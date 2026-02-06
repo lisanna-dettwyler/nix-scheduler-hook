@@ -54,6 +54,13 @@ struct Settings : public nix::Config
         "Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed."
     };
 
+    nix::Setting <std::string> gridStateDir {
+        this,
+        "",
+        "grid-state-dir",
+        "Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons."
+    };
+
     nix::Setting<std::string> slurmConf {
         this,
         "",

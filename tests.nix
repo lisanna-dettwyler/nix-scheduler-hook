@@ -1,4 +1,4 @@
-{ pkgs, nixpkgs, nix-scheduler-hook, openpbs }:
+{ pkgs, nixpkgs, nix-scheduler-hook, openpbs, ocs }:
 with pkgs;
 let
   slurmconfig = {
@@ -62,8 +62,117 @@ let
         message = "NixOS Test: don't know which VM guest system to pair with VM host system: ${hostPlatform.system}. Perhaps you intended to run the tests on a Linux host, or one of the following systems that may run NixOS tests: ${supportedHosts}";
       in
       hostToGuest.${hostPlatform.system} or (throw message);
+  ocsConf = writeText "ocs.conf" ''
+    SGE_ROOT="/var/ocs"
+    SGE_QMASTER_PORT="6444"
+    SGE_EXECD_PORT="6445"
+    SGE_ENABLE_SMF="false"
+    SGE_CLUSTER_NAME="test"
+    CELL_NAME="default"
+    ADMIN_USER=""
+    QMASTER_SPOOL_DIR="/tmp/qmaster-spool"
+    EXECD_SPOOL_DIR="/tmp/execd-spool"
+    GID_RANGE="16000-16100"
+    SPOOLING_METHOD="classic"
+    DB_SPOOLING_DIR="/tmp/spooldb"
+    PAR_EXECD_INST_COUNT="20"
+    ADMIN_HOST_LIST="grid"
+    SUBMIT_HOST_LIST="grid submit"
+    EXEC_HOST_LIST="grid"
+    EXECD_SPOOL_DIR_LOCAL=""
+    HOSTNAME_RESOLVING="true"
+    SHELL_NAME="ssh"
+    COPY_COMMAND="scp"
+    DEFAULT_DOMAIN="none"
+    ADMIN_MAIL="none"
+    ADD_TO_RC="false"
+    SLICE_NAME="ocs"
+    SET_FILE_PERMS="true"
+    RESCHEDULE_JOBS="wait"
+    SHADOW_HOST=""
+    EXEC_HOST_LIST_RM=""
+    REMOVE_RC="false"
+    CSP_RECREATE="true"
+    CSP_COPY_CERTS="false"
+    CSP_COUNTRY_CODE="DE"
+    CSP_STATE="Germany"
+    CSP_LOCATION="Building"
+    CSP_ORGA="Organisation"
+    CSP_ORGA_UNIT="Organisation_unit"
+    CSP_MAIL_ADDRESS="name@yourdomain.com"
+  '';
+  ocsConfig = {
+    networking.firewall.enable = false;
+    systemd.tmpfiles.rules = [
+      "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
+    ];
+    services.openssh.enable = true;
+    users.users.root.openssh.authorizedKeys.keys = [
+      snakeOilPublicKey
+    ];
+    services.munge.enable = true;
+    environment.variables.SGE_ROOT = "/var/ocs";
+    users.users.grid.isNormalUser = true;
+    users.users.grid.group = "grid";
+    users.groups.grid = {};
+    environment.systemPackages = [
+      binutils
+      coreutils
+      gawk
+      gettext
+      which
+      mailutils
+      xterm
+    ];
+    # environment.variables = {
+    #   SGE_ROOT = "/var/ocs";
+    #   SGE_CELL = "default";
+    #   SGE_CLUSTER_NAME = "test";
+    #   SGE_QMASTER_PORT = "6444";
+    #   SGE_EXECD_PORT = "6445";
+    # };
+  };
 in
 {
+  ocsTests = testers.nixosTest {
+    name = "Open Cluster Scheduler Tests";
+    interactive.sshBackdoor.enable = true;
+    nodes.grid = {
+      imports = [ ocsConfig ];
+      services.openssh.enable = true;
+      users.users.root.openssh.authorizedKeys.keys = [
+        snakeOilPublicKey
+      ];
+    };
+    nodes.submit = {
+      imports = [ ocsConfig ];
+      programs.ssh.extraConfig = ''
+        Host grid
+          IdentityFile ~/.ssh/privkey.snakeoil
+          StrictHostKeyChecking no
+      '';
+      nix.settings.substitute = false;
+    };
+    testScript = ''
+      start_all();
+
+      for node in [grid, submit]:
+          node.wait_for_unit("multi-user.target")
+          node.succeed("sed -i '/127.0.0.2/d' /etc/hosts")
+          node.succeed("cat ${snakeOilPrivateKey} > ~/.ssh/privkey.snakeoil")
+          node.succeed("chmod 600 ~/.ssh/privkey.snakeoil")
+          node.succeed("echo 'IdentityFile ~/.ssh/privkey.snakeoil' >> ~/.ssh/config")
+          node.succeed("echo 'StrictHostKeyChecking no' >> ~/.ssh/config")
+      
+      grid.succeed("cp -r ${ocs} $SGE_ROOT")
+      grid.succeed("chmod u+w -R $SGE_ROOT")
+      grid.succeed("cp ${ocsConf} $SGE_ROOT/ocs.conf")
+      grid.succeed("chown grid -R $SGE_ROOT")
+      grid.succeed("cd $SGE_ROOT; ./inst_sge -m -x -auto ./ocs.conf")
+      grid.succeed("scp -r $SGE_ROOT submit:$SGE_ROOT")
+    '';
+  };
+
   fallbackTests = testers.nixosTest {
     name = "Fallback Tests";
     interactive.sshBackdoor.enable = true;

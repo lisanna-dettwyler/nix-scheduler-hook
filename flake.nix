@@ -12,6 +12,10 @@
       url = "github:openpbs/openpbs";
       flake = false;
     };
+    ocs = {
+      url = "github:hpc-gridware/clusterscheduler";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }@inputs: flake-utils.lib.eachDefaultSystem (system:
@@ -54,16 +58,35 @@
             xargs patchelf --add-needed libmunge.so --add-rpath ${munge}/lib
         '';
       };
+      ocs = with pkgs; stdenv.mkDerivation {
+        name = "open-cluster-scheduler";
+        src = inputs.ocs;
+        nativeBuildInputs = [ cmake coreutils which db.dev jemalloc ];
+        buildInputs = [ zulu munge hwloc rapidjson udev ];
+        cmakeFlags = [
+          (lib.cmakeOptionType "string" "CMAKE_POLICY_VERSION_MINIMUM" "3.5")
+          (lib.cmakeOptionType "bool" "WITH_OS_3RDPARTY" "true")
+        ];
+        patches = [ ./ocs.patch ];
+        postInstall = ''
+          for file in $(ls $out/bin/*/); do
+              ln -s $out/bin/*/$file $out/bin/$file
+          done
+          for file in $(ls $out/lib/*/); do
+              ln -s $out/lib/*/$file $out/lib/$file
+          done
+        '';
+      };
     in rec {
       checks = import ./tests.nix {
-        inherit nixpkgs pkgs openpbs;
+        inherit nixpkgs pkgs openpbs ocs;
         nix-scheduler-hook = packages.default;
       };
       packages = rec {
-        inherit openpbs;
+        inherit openpbs ocs;
         default = nix-scheduler-hook;
         nix-scheduler-hook = import ./default.nix {
-          inherit pkgs openpbs;
+          inherit pkgs openpbs ocs;
           slurm = with pkgs; symlinkJoin {
             name = "slurm";
             paths = [

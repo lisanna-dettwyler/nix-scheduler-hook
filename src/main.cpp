@@ -32,6 +32,7 @@ using namespace std::chrono_literals;
 #include "settings.hh"
 #include "slurm.hh"
 #include "pbs.hh"
+#include "grid.hh"
 #include "slurm-native.hh"
 #include "logging.hh"
 
@@ -246,6 +247,8 @@ try {
             scheduler = std::make_unique<SlurmNative>();
         } else if (ourSettings.jobScheduler.get() == "pbs") {
             scheduler = std::make_unique<PBS>();
+        } else if (ourSettings.jobScheduler.get() == "grid") {
+            scheduler = std::make_unique<Grid>();
         } else {
             using namespace nix;
             printError("NSH Error: unsupported job scheduler %s", ourSettings.jobScheduler.get());

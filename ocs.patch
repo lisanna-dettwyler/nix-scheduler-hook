@@ -1,0 +1,358 @@
+diff --git a/cmake/ArchitectureSpecificSettings.cmake b/cmake/ArchitectureSpecificSettings.cmake
+index c867f3b39..9d5685e73 100644
+--- a/cmake/ArchitectureSpecificSettings.cmake
++++ b/cmake/ArchitectureSpecificSettings.cmake
+@@ -81,8 +81,8 @@ function(architecture_specific_settings)
+ 
+       # Linux supported/unsupported amd64/x86
+       message(STATUS "We are on Linux: ${SGE_ARCH}")
+-      set(CMAKE_C_FLAGS "-Wall -Werror -pedantic" CACHE STRING "" FORCE)
+-      set(CMAKE_CXX_FLAGS "-Wall -Werror -pedantic" CACHE STRING "" FORCE)
++      set(CMAKE_C_FLAGS "-Wall -pedantic" CACHE STRING "" FORCE)
++      set(CMAKE_CXX_FLAGS "-Wall -pedantic" CACHE STRING "" FORCE)
+ 
+       # @todo does -fPIC have any disadvantages when not required (only for shared libs)?
+       add_compile_options(-fPIC)
+diff --git a/source/daemons/qmaster/CMakeLists.txt b/source/daemons/qmaster/CMakeLists.txt
+index 7d25de6c0..f00e9d33e 100644
+--- a/source/daemons/qmaster/CMakeLists.txt
++++ b/source/daemons/qmaster/CMakeLists.txt
+@@ -87,7 +87,7 @@ set(QMASTER_SOURCES
+         sge_userprj_qmaster.cc
+         sge_userset_qmaster.cc
+         sge_utility_qmaster.cc
+-        ../../../../${PROJECT_FEATURES}/source/daemons/qmaster/TestClass.cc
++        ../../../source/daemons/qmaster/TestClass.cc
+         ../../common/sig_handlers.cc
+         ../../common/sge_options.cc
+         ../../common/usage.cc
+diff --git a/source/dist/inst_sge b/source/dist/inst_sge
+index a19fb9fd8..93a315364 100755
+--- a/source/dist/inst_sge
++++ b/source/dist/inst_sge
+@@ -43,11 +43,6 @@
+ SCRIPT_VERSION="9"
+ SGE_VERSION="9.1.0"
+ 
+-#Reset PATH to a safe value
+-#
+-SAVED_PATH=$PATH
+-PATH=/bin:/usr/bin:/usr/sbin:/usr/bsd:/usr/ucb
+-
+ # Easy way to prevent clearing of screen
+ #
+ CLEAR=ClearScreen
+diff --git a/source/dist/util/arch b/source/dist/util/arch
+index e75d0c579..0720da925 100755
+--- a/source/dist/util/arch
++++ b/source/dist/util/arch
+@@ -50,9 +50,6 @@
+ # save the old value of PATH for later restoration.
+ #
+ 
+-SAFE_PATH=/bin:/usr/bin:/usr/sbin
+-OLD_PATH=$PATH
+-PATH=$SAFE_PATH
+ 
+ ARCH=UNKNOWN
+ 
+@@ -62,12 +59,9 @@ if [ ! -x $strings_path ]; then
+    exit 1
+ fi
+ 
+-if [ -x /bin/uname ]; then
+-   UNAME=/bin/uname
+-elif [ -x /usr/bin/uname ]; then
+-   UNAME=/usr/bin/uname
+-else
+-   echo ERROR: \"uname\" command not found
++UNAME=`which uname`
++if [ ! -x $UNAME ]; then
++   echo "ERROR: uname not found"
+    exit 1
+ fi
+ 
+@@ -204,7 +198,7 @@ Linux)
+          # <  2.12 not accepted as build or execution platform
+ 
+          # there must be a /bin/sh installed, and it certainly uses libc
+-         libc_ldd=`ldd /bin/sh | grep libc.so.6`
++         libc_ldd=`ldd $(which locale) | grep libc.so.6`
+ 
+          # retrieving libc location failed
+          if [ $? -ne 0 ]; then
+diff --git a/source/dist/util/arch_variables b/source/dist/util/arch_variables
+index 4cdd0f9ec..c3a3e8459 100755
+--- a/source/dist/util/arch_variables
++++ b/source/dist/util/arch_variables
+@@ -80,14 +80,14 @@ case $ARCH in
+    ;;
+  lx*|ulx*|xlx*)
+    first_two=`echo $ARCH | cut -c 1-2`
+-   AWK=/usr/bin/gawk
+-   ECHO="/bin/echo -e"
++   AWK=gawk
++   ECHO="echo -e"
+    if [ `ps -p 1 -o comm=` = "systemd" -a "$first_two" = "lx" ]; then
+       # nearly all newer Linux distributions use systemd
+       # but we support it only on lx-*
+       # ulx-* (CentOS 7) is too old
+-      RC_FILE=systemd
+-      RC_PREFIX=/etc/systemd/system
++      RC_FILE=unused
++      RC_PREFIX=unused
+       RC_DIR=unused
+    elif [ -x /usr/lib/lsb/install_initd ]; then
+       # RedHat, CentOS etc.
+@@ -114,12 +114,12 @@ case $ARCH in
+       RC_PREFIX=/etc/rc.d
+       RC_DIR=rc3.d
+    fi
+-   XTERM=/usr/bin/X11/xterm
+-   MAILER=/bin/mail
++   XTERM=$(which xterm)
++   MAILER=$(which mail)
+    QLOGIN_COMMAND=telnet
+    QLOGIN_DAEMON=/usr/sbin/in.telnetd
+    RLOGIN_DAEMON=/usr/sbin/in.rlogind
+-   GETTEXT=/usr/bin/gettext
++   GETTEXT=gettext
+    RSH_DAEMON=undef
+    LOADSENSOR_COMMAND=undef
+    ;;
+diff --git a/source/dist/util/create_settings.sh b/source/dist/util/create_settings.sh
+index 6166c99bb..a69aca117 100755
+--- a/source/dist/util/create_settings.sh
++++ b/source/dist/util/create_settings.sh
+@@ -36,8 +36,6 @@
+ #
+ # $1 = base directory  where settings.[c]sh is created
+ 
+-PATH=/bin:/usr/bin
+-
+ ErrUsage()
+ {
+    echo
+diff --git a/source/dist/util/install_modules/inst_qmaster.sh b/source/dist/util/install_modules/inst_qmaster.sh
+index 53e9197ba..bb22f7a5a 100644
+--- a/source/dist/util/install_modules/inst_qmaster.sh
++++ b/source/dist/util/install_modules/inst_qmaster.sh
+@@ -740,7 +740,7 @@ PrintConf()
+    $ECHO "load_report_time       00:00:15"
+    $ECHO "max_unheard            00:05:00"
+    $ECHO "reschedule_unknown     00:00:00"
+-   $ECHO "loglevel               log_warning"
++   $ECHO "loglevel               log_debug"
+    $ECHO "administrator_mail     $CFG_MAIL_ADDR"
+    $ECHO "mail_tag               NONE"
+    if [ "$AFS" = true ]; then
+diff --git a/source/dist/util/logchecker.sh b/source/dist/util/logchecker.sh
+index a42e7fee3..14d05febb 100644
+--- a/source/dist/util/logchecker.sh
++++ b/source/dist/util/logchecker.sh
+@@ -58,8 +58,6 @@
+ # for more information about this script
+ #
+ 
+-PATH=/usr/bin
+-
+ #---------------------------------------------------------------------------
+ # begin section that needs to be customized
+ #
+diff --git a/source/dist/util/rctemplates/sgeexecd_template b/source/dist/util/rctemplates/sgeexecd_template
+index d5eaf0a3b..75a5d4456 100644
+--- a/source/dist/util/rctemplates/sgeexecd_template
++++ b/source/dist/util/rctemplates/sgeexecd_template
+@@ -58,8 +58,6 @@
+ # This script requires the script $SGE_ROOT/util/arch
+ #
+ 
+-PATH=/bin:/usr/bin:/sbin:/usr/sbin
+-
+ #---------------------------------------------------------------------------
+ # The following lines provide the necessary info for adding a startup script
+ # according to the Linux Standard Base Specification (LSB) which can
+diff --git a/source/dist/util/rctemplates/sgemaster_template b/source/dist/util/rctemplates/sgemaster_template
+index 90dc63577..9ef81966d 100644
+--- a/source/dist/util/rctemplates/sgemaster_template
++++ b/source/dist/util/rctemplates/sgemaster_template
+@@ -63,8 +63,6 @@
+ # This script requires the script $SGE_ROOT/util/arch
+ #
+ 
+-PATH=/bin:/usr/bin:/sbin:/usr/sbin
+-
+ #---------------------------------------------------------------------------
+ # The following lines provide the necessary info for adding a startup script
+ # according to the Linux Standard Base Specification (LSB) which can
+diff --git a/source/dist/util/resources/jsv/jsv.sh b/source/dist/util/resources/jsv/jsv.sh
+index 691195a71..db1d48bd7 100755
+--- a/source/dist/util/resources/jsv/jsv.sh
++++ b/source/dist/util/resources/jsv/jsv.sh
+@@ -41,8 +41,6 @@
+ #              as user which submitted the job.
+ #
+ 
+-PATH=/bin:/usr/bin
+-
+ ####### JSV/jsv_on_start() ###################################################
+ #  NAME
+ #     jsv_on_start() -- initiates a job verification for one job
+diff --git a/source/dist/util/resources/jsv/jsv_include.sh b/source/dist/util/resources/jsv/jsv_include.sh
+index 54a8dbc1f..848276fc2 100755
+--- a/source/dist/util/resources/jsv/jsv_include.sh
++++ b/source/dist/util/resources/jsv/jsv_include.sh
+@@ -40,7 +40,6 @@
+ #              permissions if they are executed within the master process
+ #
+ 
+-PATH=/bin:/usr/bin
+ ARCH=`$SGE_ROOT/util/arch`
+ 
+ __jsv_logging_enabled="false" # is logging enabled?
+diff --git a/source/dist/util/resources/loadsensors/calendar.sh b/source/dist/util/resources/loadsensors/calendar.sh
+index 854bc647d..4c2f29f09 100755
+--- a/source/dist/util/resources/loadsensors/calendar.sh
++++ b/source/dist/util/resources/loadsensors/calendar.sh
+@@ -39,8 +39,6 @@
+ # In an admin_user system euid=0 and uid=admin_user
+ #
+ 
+-PATH=/bin:/usr/bin
+-
+ ls_log_file=/tmp/ls.dbg
+  
+ # uncomment this to log load sensor startup  
+diff --git a/source/dist/util/resources/loadsensors/iidle.sh b/source/dist/util/resources/loadsensors/iidle.sh
+index 420eb87da..4f2d6e5eb 100755
+--- a/source/dist/util/resources/loadsensors/iidle.sh
++++ b/source/dist/util/resources/loadsensors/iidle.sh
+@@ -29,7 +29,6 @@
+ #
+ # Note: Load sensor scripts are started with root permissions. In an admin_user system: euid=0; uid=admin_user
+ 
+-PATH=/bin:/usr/bin
+ ARCH=$("$SGE_ROOT/util/arch")
+ 
+ # print idle time in seconds to stdout
+diff --git a/source/dist/util/resources/loadsensors/load.sh b/source/dist/util/resources/loadsensors/load.sh
+index 372232b03..04df3c7c1 100755
+--- a/source/dist/util/resources/loadsensors/load.sh
++++ b/source/dist/util/resources/loadsensors/load.sh
+@@ -40,7 +40,6 @@
+ # In an admin_user system euid=0 and uid=admin_user
+ #
+ 
+-PATH=/bin:/usr/bin
+ 
+ 
+ ARCH=`$SGE_ROOT/util/arch`
+diff --git a/source/dist/util/resources/loadsensors/maui.sh b/source/dist/util/resources/loadsensors/maui.sh
+index fe3fa214f..fa553f842 100755
+--- a/source/dist/util/resources/loadsensors/maui.sh
++++ b/source/dist/util/resources/loadsensors/maui.sh
+@@ -45,7 +45,6 @@
+ # disk_total       dt         MEMORY 0               <=    YES         NO         0    
+ # disk_free        df         MEMORY 0               <=    YES         NO         0
+ 
+-PATH=/bin:/usr/bin
+ 
+ 
+ ARCH=`$SGE_ROOT/util/arch`
+diff --git a/source/dist/util/resources/loadsensors/nuser.sh b/source/dist/util/resources/loadsensors/nuser.sh
+index c42faabce..379dfb5f3 100755
+--- a/source/dist/util/resources/loadsensors/nuser.sh
++++ b/source/dist/util/resources/loadsensors/nuser.sh
+@@ -51,8 +51,6 @@
+ # In an admin_user system euid=0 and uid=admin_user
+ #
+ 
+-PATH=/bin:/usr/bin
+-
+ ARCH=`$SGE_ROOT/util/arch`
+ HOST=`$SGE_ROOT/utilbin/$ARCH/gethostname -name`
+ 
+diff --git a/source/dist/util/setfileperm.sh b/source/dist/util/setfileperm.sh
+index 56344edab..b729953f3 100755
+--- a/source/dist/util/setfileperm.sh
++++ b/source/dist/util/setfileperm.sh
+@@ -46,7 +46,6 @@
+ # permissions.
+ #
+ 
+-PATH=/bin:/usr/bin:/usr/sbin
+ 
+ FILELIST="3rd_party bin ckpt dtrace examples inst_sge install_execd install_qmaster \
+           lib mpi util utilbin"
+diff --git a/source/dist/util/sgeCA/sge_ca b/source/dist/util/sgeCA/sge_ca
+index bd4762cee..feb06c564 100755
+--- a/source/dist/util/sgeCA/sge_ca
++++ b/source/dist/util/sgeCA/sge_ca
+@@ -36,9 +36,6 @@
+ #
+ # set -x
+ 
+-# Reset PATH to a safe value  
+-#
+-PATH=/bin:/usr/bin:/usr/sbin:/usr/bsd:/usr/ucb
+ 
+ # Easy way to prevent clearing of screen
+ #
+diff --git a/source/dist/util/sgeremoterun b/source/dist/util/sgeremoterun
+index 2a716e61c..24e83d37a 100755
+--- a/source/dist/util/sgeremoterun
++++ b/source/dist/util/sgeremoterun
+@@ -34,8 +34,6 @@
+ ##########################################################################
+ #___INFO__MARK_END__
+ 
+-PATH=/bin:/usr/bin:/usr/local/bin
+-
+ # "$SGE_ROOT" and $SGE_CELL (if other than "default") must be set in current
+ # environment.
+ #
+diff --git a/source/libs/sgeobj/CMakeLists.txt b/source/libs/sgeobj/CMakeLists.txt
+index 50c6331a0..13f4a2aa2 100644
+--- a/source/libs/sgeobj/CMakeLists.txt
++++ b/source/libs/sgeobj/CMakeLists.txt
+@@ -146,7 +146,7 @@ set(LIBRARY_SOURCES
+         sge_userset.cc
+         sge_utility.cc
+         sge_var.cc
+-        ../../../../${PROJECT_FEATURES}/source/libs/sgeobj/ocs_RequestLimits.cc
++        ../../../source/libs/sgeobj/ocs_RequestLimits.cc
+         cull/sge_sub_object.cc
+ )
+ set(LIBRARY_INCLUDES ${SGE_INCLUDES} "./")
+diff --git a/source/libs/uti/sge_os.h b/source/libs/uti/sge_os.h
+index 95a8c0413..5dfcffbee 100644
+--- a/source/libs/uti/sge_os.h
++++ b/source/libs/uti/sge_os.h
+@@ -43,11 +43,11 @@
+ #include "sge_nice.h"
+ 
+ #if defined(LINUX) || defined(FREEBSD) || defined(NETBSD) || defined(DARWIN)
+-#  define PSCMD "/bin/ps -axc"
++#  define PSCMD "ps -axc"
+ #elif defined(SOLARIS)
+-#  define PSCMD "/bin/ps -eo pid,fname"
++#  define PSCMD "ps -eo pid,fname"
+ #else
+-#  define PSCMD "/bin/ps -e"
++#  define PSCMD "ps -e"
+ #endif
+ 
+ /*
+diff --git a/source/utilbin/CMakeLists.txt b/source/utilbin/CMakeLists.txt
+index 81269f3c4..8654f0477 100644
+--- a/source/utilbin/CMakeLists.txt
++++ b/source/utilbin/CMakeLists.txt
+@@ -78,7 +78,7 @@ target_link_libraries(infotext PRIVATE sgeobj cull commlists uti ${SGE_LIBS})
+ # loadcheck
+ add_executable(loadcheck
+       loadcheck.cc
+-      ../../../${PROJECT_FEATURES}/source/daemons/qmaster/TestClass.cc
++      ../../source/daemons/qmaster/TestClass.cc
+ )
+ target_include_directories(loadcheck PRIVATE ${SGE_INCLUDES})
+ target_link_libraries(loadcheck PRIVATE sgeobj cull comm commlists uti ${SGE_TOPO_LIB} ${SGE_LIBS})
