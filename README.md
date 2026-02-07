@@ -127,3 +127,5 @@ This will cause NSH to invoke the Nix Static binaries on the remote machine when
 Because of https://github.com/NixOS/nix/issues/14760, it is impossible for NSH to cleanup any outstanding jobs if the build gets manually cancelled, e.g. with ctrl-c. It is therefore currently the responsibility of the user to cleanup all the jobs NSH submits to the scheduler on their behalf if they cancel a build.
 
 Some recent versions of Nix do not respect the `build-hook` option in `nix.conf`, requiring you to pass NSH via `--option` instead. This issue has been fixed in upstream as of [0e3a620](https://github.com/NixOS/nix/commit/0e3a6203747b6c3c24dec34cb3df5b829bf47100).
+
+It is not possible to set `nix.settings.build-hook` on NixOS when using Lix. The `nix.conf` validation step will fail complaining that `build-hook` is a deprecated setting. It is still possible to use NSH with Lix through `--option build-hook` on the command-line, although fallback to the regular build hook is broken.
