@@ -62,6 +62,7 @@ let
         message = "NixOS Test: don't know which VM guest system to pair with VM host system: ${hostPlatform.system}. Perhaps you intended to run the tests on a Linux host, or one of the following systems that may run NixOS tests: ${supportedHosts}";
       in
       hostToGuest.${hostPlatform.system} or (throw message);
+  helloBinCache = mkBinaryCache { rootPaths = [ hello.drvPath ]; };
 in
 {
   fallbackTests = testers.nixosTest {
@@ -156,6 +157,22 @@ in
           out = submit.succeed(build_derivation_local)
           print(out)
           t.assertIn("Failed to find a machine for remote build!", out)
+
+      build_derivation_hello = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substituters file://${helloBinCache}?trusted=1 \
+          --option substitute true \
+          -E '
+            with (import ${nixpkgs} { hostSystem = "${guestSystem}"; });
+            hello.overrideAttrs(final: prev: {
+              REBUILD = builtins.currentTime;
+              requiredSystemFeatures = [ "build" ];
+            })'
+      """
+
+      with subtest("run_nix_build_hello"):
+          submit.succeed(build_derivation_hello)
     '';
   };
 
@@ -376,6 +393,7 @@ in
           path = submit.succeed("readlink -f result")
           for node in [node1, node2, node3]:
               node.fail("ls /var/store%s" % path.rstrip('\n'))
+      submit.succeed("sed -i '/collect-garbage/d' /etc/nix/nsh.conf")
 
       with subtest("run_nix_build_static"):
           for node in [node1, node2, node3]:
@@ -391,6 +409,22 @@ in
           node.succeed("nix --version")
       submit.succeed("sed -i '/remote-store/d' /etc/nix/nsh.conf")
       submit.succeed("sed -i '/remote-nix-bin-dir/d' /etc/nix/nsh.conf")
+
+      build_derivation_hello = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substituters file://${helloBinCache}?trusted=1 \
+          --option substitute true \
+          -E '
+            with (import ${nixpkgs} { hostSystem = "${guestSystem}"; });
+            hello.overrideAttrs(final: prev: {
+              REBUILD = builtins.currentTime;
+              requiredSystemFeatures = [ "nsh" ];
+            })'
+      """
+
+      with subtest("run_nix_build_hello"):
+          submit.succeed(build_derivation_hello)
     '';
   };
 
@@ -506,6 +540,22 @@ in
 
       with subtest("run_nix_build_deps"):
           submit.succeed(build_derivation_deps)
+
+      build_derivation_hello = """
+        nix-build \
+          --option build-hook ${nix-scheduler-hook}/bin/nsh \
+          --option substituters file://${helloBinCache}?trusted=1 \
+          --option substitute true \
+          -E '
+            with (import ${nixpkgs} { hostSystem = "${guestSystem}"; });
+            hello.overrideAttrs(final: prev: {
+              REBUILD = builtins.currentTime;
+              requiredSystemFeatures = [ "nsh" ];
+            })'
+      """
+
+      with subtest("run_nix_build_hello"):
+          submit.succeed(build_derivation_hello)
     '';
   };
 }
