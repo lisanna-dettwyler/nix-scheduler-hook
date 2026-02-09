@@ -365,10 +365,17 @@ in
       submit.succeed("sed -i s/snake/snakeoil/g ~/.ssh/config")
 
       with subtest("run_nix_build_custom_store"):
-          submit.succeed("echo 'remote-store = /store' >> /etc/nix/nsh.conf")
+          submit.succeed("echo 'remote-store = /var/store' >> /etc/nix/nsh.conf")
           out = submit.succeed(build_derivation_simple)
           print(out)
           t.assertIn("something", out)
+
+      with subtest("run_nix_build_gc"):
+          submit.succeed("echo 'collect-garbage = true' >> /etc/nix/nsh.conf")
+          submit.succeed(build_derivation_simple)
+          path = submit.succeed("readlink -f result")
+          for node in [node1, node2, node3]:
+              node.fail("ls /var/store%s" % path.rstrip('\n'))
 
       with subtest("run_nix_build_static"):
           for node in [node1, node2, node3]:

@@ -54,6 +54,13 @@ struct Settings : public nix::Config
         "Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed."
     };
 
+    nix::Setting<bool> collectGarbage {
+        this,
+        false,
+        "collect-garbage",
+        "Run nix store gc on the remote-store after each job completes."
+    };
+
     nix::Setting<std::string> slurmConf {
         this,
         "",

@@ -10,6 +10,7 @@ General settings:
 - `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
 - `remote-store`: The store URL to be used on the remote machine. See: [https://nix.dev/manual/nix/latest/store/types/](https://nix.dev/manual/nix/latest/store/types/). Default: `auto`.
 - `remote-nix-bin-dir`: Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed (see below).
+- `collect-garbage`: Run `nix store gc` on the `remote-store` after each job completes. Default: `false`.
 
 ## Supported Job Schedulers
 
@@ -116,11 +117,11 @@ scp -r ./result login.example.com:/home/you/nix-static
 Configure your `nsh.conf` file with the following settings:
 
 ```conf
-remote-store = /home/you/store
+remote-store = /local/store
 remote-nix-bin-dir = /home/you/nix-static/bin
 ```
 
-This will cause NSH to invoke the Nix Static binaries on the remote machine when performing a build and copying dependencies and results.
+This will cause NSH to invoke the Nix Static binaries on the remote machine when performing a build and copying dependencies and results. See below notes on best practices for setting `remote-store`.
 
 ## Known Limitations
 
@@ -129,3 +130,5 @@ Because of https://github.com/NixOS/nix/issues/14760, it is impossible for NSH t
 Some recent versions of Nix do not respect the `build-hook` option in `nix.conf`, requiring you to pass NSH via `--option` instead. This issue has been fixed in upstream as of [0e3a620](https://github.com/NixOS/nix/commit/0e3a6203747b6c3c24dec34cb3df5b829bf47100).
 
 It is not possible to set `nix.settings.build-hook` on NixOS when using Lix. The `nix.conf` validation step will fail complaining that `build-hook` is a deprecated setting. It is still possible to use NSH with Lix through `--option build-hook` on the command-line, although fallback to the regular build hook is broken.
+
+It is [recommended](https://discourse.nixos.org/t/how-do-i-best-use-nix-to-create-a-development-environment-on-an-hpc-cluster-without-the-possibility-of-system-wide-installation/71096/2) to use a `remote-store` location that is *not* on a shared filesystem, for performance reasons and to not exhaust your file count quota. Note that using a location in `/tmp` will not work because Nix disallows stores to exist in world-writeable locations. Using a location in `/run/user/<uid>/` is not recommended as it is possible (although unlikely) for the job to start immediately and complete before a store connection is established to the remote, leaving a small window of time during which the contents of `/run/user/<uid>/` could be cleaned up. This could happen if a prior build of the same derivation was interrupted, leaving the derivation file available in the store for the new job to use immediately. It is safest to use a location backed by a local disk, and to make use of the `collect-garbage = true` NSH option to cleanup after every job.
