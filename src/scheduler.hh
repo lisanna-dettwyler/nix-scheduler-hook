@@ -28,6 +28,23 @@ public:
                     auto cmd = sshMaster->startCommand(std::move(rmCmd));
                     cmd->sshPid.wait();
                 }
+                if (ourSettings.collectGarbage.get()) {
+                    auto binDir = ourSettings.remoteNixBinDir.get();
+                    nix::Strings gcCmd = {
+                        (binDir != "" ? binDir + "/" : "") + "nix",
+                        "store",
+                        "gc",
+                        "--extra-experimental-features",
+                        "nix-command",
+                        "--store",
+                        ourSettings.remoteStore.get()
+                    };
+                    auto cmd = sshMaster->startCommand(std::move(gcCmd));
+                    if (int rc = cmd->sshPid.wait()) {
+                        using namespace nix;
+                        printError("NSH Error: garbage collection failed: %d", rc);
+                    }
+                }
             }
         } catch (std::exception & e) {
             using namespace nix;
