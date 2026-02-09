@@ -30,7 +30,9 @@
         src = inputs.openpbs;
         nativeBuildInputs = [ autoconf automake libtool gnum4 tclWithTk swig pkg-config cjson makeWrapper ];
         buildInputs = [ openssl zlib libxt libx11 libpq python3 expat libedit hwloc libical krb5 munge ];
-        patchPhase = ''
+        enableParallelBuilding = true;
+        patches = [ ./openpbs-2711.patch ./openpbs-2709.patch ];
+        postPatch = ''
           substituteInPlace src/cmds/scripts/Makefile.am --replace-fail "/etc/profile.d" "$out/etc/profile.d"
           substituteInPlace m4/pbs_systemd_unitdir.m4 --replace-fail "/usr/lib/systemd/system" "$out/lib/systemd/system"
         '';

@@ -70,7 +70,7 @@ void SlurmNative::submit(nix::StorePath drvPath)
         using namespace nix;
         printError("warning: %s", slurm_strerror(resp->error_code));
     }
-    nativeJobId = resp->job_id;
+    nativeJobId = resp->step_id.job_id;
     jobId = std::to_string(nativeJobId);
     slurm_free_submit_response_response_msg(resp);
 
