@@ -33,6 +33,13 @@ struct Settings : public nix::Config
         "Optional system features supported by the machines in the cluster. The default value is 'nsh'. Can be used to force derivations to build only via nix-scheduler-hook by adding 'nsh' as a required system feature."
     };
 
+    nix::Setting<nix::StringSet> mandatorySystemFeatures {
+        this,
+        {},
+        "mandatory-system-features",
+        "System features that the derivations must require in order to be built on the cluster."
+    };
+
     nix::Setting<std::string> storeDir {
         this,
         "/nix/store",

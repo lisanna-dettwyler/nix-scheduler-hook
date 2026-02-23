@@ -226,6 +226,18 @@ try {
         }
     }
 
+    auto mandatorySystemFeatures = ourSettings.mandatorySystemFeatures.get();
+    for (auto & feature : mandatorySystemFeatures) {
+        if (requiredFeatures.find(feature) == requiredFeatures.end()) {
+            using namespace nix;
+            printError("derivation does not require mandatory feature %s, required features:", feature);
+            for (auto & f : requiredFeatures) {
+                printError(f);
+            }
+            tryFallback = true;
+        }
+    }
+
     if (tryFallback) {
         try {
             nix::Activity act(*nix::logger, nix::lvlInfo, nix::actUnknown, "falling back to normal build hook");

@@ -7,6 +7,7 @@ General settings:
 - `job-scheduler`: Which job scheduler to use, available choices are 'slurm', 'slurm-native', and 'pbs'. Default: `slurm`.
 - `system`: The system type of this cluster, jobs requiring a different system will not be routed to the scheduler. Default: `x86_64-linux`.
 - `system-features`: Optional system features supported by the machines in the cluster. Can be used to force derivations to build only via nix-scheduler-hook by adding 'nsh' as a required system feature. Default: `nsh`.
+- `mandatory-system-features`: System features that the derivations must require in order to be built on the cluster. Default: (empty).
 - `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
 - `remote-store`: The store URL to be used on the remote machine. See: [https://nix.dev/manual/nix/latest/store/types/](https://nix.dev/manual/nix/latest/store/types/). Default: `auto`.
 - `remote-nix-bin-dir`: Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed (see below).
@@ -122,6 +123,20 @@ remote-nix-bin-dir = /home/you/nix-static/bin
 ```
 
 This will cause NSH to invoke the Nix Static binaries on the remote machine when performing a build and copying dependencies and results. See below notes on best practices for setting `remote-store`.
+
+## Managing Which Derivations Get Built on the Cluster
+
+The `system-features` and `mandatory-system-features` configuration settings can be used to filter which derivations are sent to the cluster and which are built through other means (fallback or locally). `nsh` is the default value of the `system-features` setting. If you want to force a derivation to build on your cluster, you can add `nsh` as a `requiredSystemFeatures`.
+
+```nix
+runCommand "myjob" {
+  requiredSystemFeatures = [ "nsh" ];
+} ''
+echo "Hello Slurm!" > $out
+''
+```
+
+By default, all derivations are opportunistically sent to NSH to be built on the cluster. If you want to prevent all but certain derivations from building on your cluster, you can additionally make use of the `mandatory-system-features` NSH setting. By default it is empty. If you set it to `nsh`, this will make all derivations which don't have `nsh` as a `requiredSystemFeatures` (e.g., everything in nixpkgs) build either through the fallback (regular) remote building hook or locally, and not on the cluster. This allows you to be selective about what gets sent to the cluster and what uses your own local resources for building.
 
 ## Known Limitations
 

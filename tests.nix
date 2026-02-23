@@ -355,6 +355,14 @@ in
       with subtest("run_nix_build_negative_system_features"):
           submit.fail(build_derivation_unsupported_system_features)
 
+      with subtest("run_nix_build_mandatory_system_features"):
+          submit.succeed("echo 'mandatory-system-features = nsh' >> /etc/nix/nsh.conf")
+          submit.succeed(build_derivation_simple)
+          submit.succeed("sed -i '/mandatory-system-features/d' /etc/nix/nsh.conf")
+          submit.succeed("echo 'mandatory-system-features = unsupported' >> /etc/nix/nsh.conf")
+          submit.fail(build_derivation_simple)
+      submit.succeed("sed -i '/mandatory-system-features/d' /etc/nix/nsh.conf")
+
       build_derivation_unsupported_system = """
         nix-build \
           --option build-hook ${nix-scheduler-hook}/bin/nsh \
