@@ -31,11 +31,8 @@ public:
                 if (ourSettings.collectGarbage.get()) {
                     auto binDir = ourSettings.remoteNixBinDir.get();
                     nix::Strings gcCmd = {
-                        (binDir != "" ? binDir + "/" : "") + "nix",
-                        "store",
-                        "gc",
-                        "--extra-experimental-features",
-                        "nix-command",
+                        (binDir != "" ? binDir + "/" : "") + "nix-store",
+                        "--gc",
                         "--store",
                         ourSettings.remoteStore.get()
                     };
