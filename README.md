@@ -10,7 +10,7 @@ General settings:
 - `store-dir`: The logical remote Nix store directory. Only change this if you know what you're doing. Default: `/nix/store`.
 - `remote-store`: The store URL to be used on the remote machine. See: [https://nix.dev/manual/nix/latest/store/types/](https://nix.dev/manual/nix/latest/store/types/). Default: `auto`.
 - `remote-nix-bin-dir`: Path to the Nix bin directory to use on the remote system. This should be a shared location on your cluster. Useful for when your cluster does not have Nix installed (see below).
-- `collect-garbage`: Run `nix store gc` on the `remote-store` after each job completes. Default: `false`.
+- `collect-garbage`: Run `nix-store --gc` on the `remote-store` after each job completes. Default: `false`.
 
 ## Supported Job Schedulers
 
