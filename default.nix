@@ -31,6 +31,7 @@ stdenv.mkDerivation {
     mkdir -p $out/bin
     mv nsh $out/bin
     mkdir -p $out/lib
-    mv subprojects/restclient-cpp/librestclient_cpp.so $out/lib
+    shopt -s extglob
+    mv subprojects/restclient-cpp/librestclient_cpp.so!(*p) $out/lib
   '';
 }
