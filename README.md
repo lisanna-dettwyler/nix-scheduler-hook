@@ -48,6 +48,8 @@ If `slurmrestd` is not available, you can use the 'slurm-native' scheduler inste
 - `slurm-state-dir` (required): Where to store temporary files on the cluster that are used during execution. It is recommended to use a location in your home directory for security reasons.
 - `slurm-conf`: Path to slurm.conf. If unset, Slurm will attempt to locate it automatically.
 
+It is suggested to use `slurm-native` on a machine that has already been configured as a Slurm submit host, so that the proper configuration and authentication mechanisms are already in place. You can use `nixpkgs#nixStatic` (see below) to submit your Nix jobs with NSH from a login node without Nix installed.
+
 Using Slurm through the REST API allows the most flexibility with specifying job parameters. When using the native version, the following job constraints can be specified on a per-derivation basis through the `slurmNativeConstraints` attribute:
 
 - `cpus`: The number of CPUs required by the job.
