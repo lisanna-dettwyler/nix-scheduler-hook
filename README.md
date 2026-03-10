@@ -142,7 +142,7 @@ By default, all derivations are opportunistically sent to NSH to be built on the
 
 ## Known Limitations
 
-Because of https://github.com/NixOS/nix/issues/14760, it is impossible for NSH to clean up any outstanding jobs if the build gets manually cancelled, e.g. with ctrl-c. It is therefore currently the responsibility of the user to clean up all the jobs NSH submits to the scheduler on their behalf if they cancel a build.
+Because of https://github.com/NixOS/nix/issues/14760, it is impossible for NSH to clean up any outstanding jobs if the build gets manually cancelled, e.g. with ctrl-c. This has been fixed in upstream as of [5d7c091](https://github.com/NixOS/nix/commit/5d7c09105991c08ecf2bdfb9bba1ed8442c0a5d4).
 
 Some recent versions of Nix do not respect the `build-hook` option in `nix.conf`, requiring you to pass NSH via `--option` instead. This issue has been fixed in upstream as of [0e3a620](https://github.com/NixOS/nix/commit/0e3a6203747b6c3c24dec34cb3df5b829bf47100).
 
