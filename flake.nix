@@ -17,7 +17,7 @@
           "x86_64-darwin"
           "aarch64-linux"
           "aarch64-darwin"
-        ] (system: function (import nixpkgs { inherit system; }) system);
+        ] (system: function (nixpkgs.legacyPackages.${system}) system);
     in {
       checks = eachDefaultSystem (pkgs: system:
         import ./tests.nix {
