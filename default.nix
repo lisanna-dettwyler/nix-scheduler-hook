@@ -1,5 +1,17 @@
-{ pkgs, restclient-cpp, openpbs, slurm }:
-with pkgs;
+{
+  stdenv,
+  restclient-cpp,
+  openpbs,
+  slurm,
+  nix,
+  boost,
+  curl,
+  meson,
+  cmake,
+  ninja,
+  pkg-config,
+  nlohmann_json
+}:
 stdenv.mkDerivation {
   name = "nix-scheduler-hook";
   src = ./src;

@@ -1,4 +1,4 @@
-{ pkgs, nixpkgs, nix-scheduler-hook, openpbs }:
+{ pkgs, nixpkgs, nix-scheduler-hook }:
 with pkgs;
 let
   slurmconfig = {
@@ -14,7 +14,7 @@ let
     };
     networking.firewall.enable = false;
     systemd.tmpfiles.rules = [
-      "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
+      "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegrateinatest"
     ];
     nix.settings.substitute = false;
   };
@@ -34,7 +34,7 @@ let
       PBS_AUTH_METHOD=MUNGE
     '';
     systemd.tmpfiles.rules = [
-      "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
+      "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegrateinatest"
     ];
     services.munge.enable = true;
     environment.systemPackages = [ openpbs ];
@@ -211,7 +211,7 @@ in
           {
             networking.firewall.enable = false;
             systemd.tmpfiles.rules = [
-              "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegratoinatest"
+              "f /etc/munge/munge.key 0400 munge munge - mungeverryweakkeybuteasytointegrateinatest"
             ];
             services.slurm.dbdserver = {
               enable = true;
