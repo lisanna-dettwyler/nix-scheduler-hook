@@ -1,6 +1,6 @@
 # Nix Scheduler Hook
 
-This is a build hook that allows Nix builds to be forwarded to clusters running a job scheduler by submitting each build as its own job. It assumes that you can access the host over SSH by the hostname, e.g. `ssh <hostname>`. SSH is used for copying the dependencies and results to and from the job host, and for streaming the build log. Settings are managed with an `nsh.conf` file in your Nix configuration directory, e.g. `/etc/nix/nsh.conf` or `~/.config/nix/nsh.conf`, using the same `key = value` format that `nix.conf` uses.
+This is a build hook that allows Nix builds to be forwarded to clusters running a job scheduler by submitting each build as its own job. It assumes that you can access the host over SSH by the hostname, e.g. `ssh <hostname>`. SSH is used for copying the dependencies and results to and from the job host, and for streaming the build log. Settings are managed with an `nsh.conf` file in your Nix configuration directory, e.g. `/etc/nix/nsh.conf` or `~/.config/nix/nsh.conf`, using the same `key = value` format that `nix.conf` uses. Note that if you installed Nix in multi-user mode (daemon) and wish to use a configuration under a user account, you should use `/root/.config/nix/nsh.conf`.
 
 General settings:
 
@@ -95,7 +95,9 @@ echo "Hello PBS!" > $out
 
 ## Installation
 
-After building from source, edit your `nix.conf` and set `build-hook = /path/to/nsh`. NSH is currently not available in nixpkgs or as a NixOS module, but this should be remedied soon.
+NSH is available in nixpkgs as `nix-scheduler-hook` as of [8ef2f76](https://github.com/NixOS/nixpkgs/commit/8ef2f769e98b2e59ed4affdb42544285626eb605).
+
+Edit your `nix.conf` and set `build-hook = /path/to/nix-scheduler-hook/bin/nsh` (e.g., on non-NixOS, install it like you would any other package and use `/home/you/.nix-profile/bin/nsh` or `/nix/var/nix/profiles/default/bin`). On NixOS, you can do `nix.settings.build-hook = ${pkgs.nix-scheduler-hook}/bin/nsh`.
 
 ## Fallback to Normal Build Hook
 
