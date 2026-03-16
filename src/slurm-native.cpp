@@ -67,8 +67,9 @@ void SlurmNative::submit(nix::StorePath drvPath)
         slurm_free_submit_response_response_msg(resp);
         throw SlurmNativeError("slurm_submit_batch_job");
     } else if (resp->error_code) {
-        using namespace nix;
-        printError("warning: %s", slurm_strerror(resp->error_code));
+        auto errorCode = resp->error_code;
+        slurm_free_submit_response_response_msg(resp);
+        throw SlurmNativeError(slurm_strerror(errorCode));
     }
     nativeJobId = resp->step_id.job_id;
     jobId = std::to_string(nativeJobId);
