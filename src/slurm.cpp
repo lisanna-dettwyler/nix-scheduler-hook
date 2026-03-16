@@ -169,9 +169,11 @@ int Slurm::waitForJobFinish()
     while (true) {
         auto state = getJobState(jobId);
         if (!isLive(state)) {
-            if (state != "COMPLETED" && state != "FAILED")
+            if (state != "COMPLETED" && state != "FAILED") {
+                using namespace nix;
+                printError("NSH Error: unexpected job state %s", state);
                 return -1;
-            else
+            } else
                 return getJobReturnCode(jobId);
         } else {
             std::this_thread::sleep_for(sleepTime);

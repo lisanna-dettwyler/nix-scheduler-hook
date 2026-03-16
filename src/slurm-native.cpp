@@ -134,9 +134,11 @@ int SlurmNative::waitForJobFinish()
     while (true) {
         auto state = getJobState(nativeJobId);
         if (!isLive(state)) {
-            if (state != JOB_COMPLETE && state != JOB_FAILED)
+            if (state != JOB_COMPLETE && state != JOB_FAILED) {
+                using namespace nix;
+                printError("NSH Error: unexpected job state %d", state);
                 return -1;
-            else
+            } else
                 return getJobReturnCode(nativeJobId);
         } else {
             std::this_thread::sleep_for(sleepTime);
