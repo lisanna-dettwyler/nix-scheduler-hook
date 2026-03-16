@@ -2,6 +2,7 @@
 
 #include "settings.hh"
 
+#include <csignal>
 #include <nix/util/fmt.hh>
 #include <nix/store/store-api.hh>
 
@@ -28,4 +29,22 @@ static std::string genScript(nix::StorePath drvPath, std::string rootPath)
         boost::algorithm::join(ourSettings.systemFeatures.get(), " "),
         rootPath
     );
+}
+
+static void blockSignals()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGTERM);
+    if (pthread_sigmask(SIG_BLOCK, &set, nullptr))
+        throw nix::SysError("blocking SIGTERM");
+}
+
+static void unblockSignals()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGTERM);
+    if (pthread_sigmask(SIG_UNBLOCK, &set, nullptr))
+        throw nix::SysError("unblocking SIGTERM");
 }

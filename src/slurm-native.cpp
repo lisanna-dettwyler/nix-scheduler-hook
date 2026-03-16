@@ -63,6 +63,7 @@ void SlurmNative::submit(nix::StorePath drvPath)
     }
 
     submit_response_msg_t *resp;
+    blockSignals();
     if (slurm_submit_batch_job(&job_desc_msg, &resp)) {
         slurm_free_submit_response_response_msg(resp);
         throw SlurmNativeError("slurm_submit_batch_job");
@@ -74,6 +75,7 @@ void SlurmNative::submit(nix::StorePath drvPath)
     nativeJobId = resp->step_id.job_id;
     jobId = std::to_string(nativeJobId);
     slurm_free_submit_response_response_msg(resp);
+    unblockSignals();
 
     bool foundBatchHost = false;
     auto sleepTime = 50ms;

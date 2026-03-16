@@ -74,6 +74,7 @@ void Slurm::submit(nix::StorePath drvPath)
     }
 
     auto conn = getConn();
+    blockSignals();
     RestClient::Response r = conn->post("/slurm/" + SLURM_API_VERSION + "/job/submit", req.dump());
     if (r.body == "Authentication failure") {
         throw SlurmAuthenticationError(r.body);
@@ -87,6 +88,7 @@ void Slurm::submit(nix::StorePath drvPath)
     }
     int jobIdInt = response["job_id"];
     jobId = std::to_string(jobIdInt);
+    unblockSignals();
 
     bool foundBatchHost = false;
     auto sleepTime = 50ms;

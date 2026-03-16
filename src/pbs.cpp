@@ -125,6 +125,7 @@ void PBS::submit(nix::StorePath drvPath)
     char pathVar[] = PATH_VAR;
     attropl aVariableList = {&aKeepFiles, ATTR_v, nullptr, pathVar, SET};
 
+    blockSignals();
     char *id = pbs_submit(connHandle, &aVariableList, scriptName, nullptr, nullptr);
     free_attropl_list(aResBase);
     aName.next = nullptr;
@@ -136,6 +137,7 @@ void PBS::submit(nix::StorePath drvPath)
         throw PBSSubmitError(nix::fmt("Error submitting PBS job: %s", pbs_geterrmsg(connHandle)));
     }
     jobId = id;
+    unblockSignals();
 
     waitForJobRunning(connHandle, jobId);
 
