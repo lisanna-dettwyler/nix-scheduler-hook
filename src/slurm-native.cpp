@@ -109,7 +109,7 @@ static job_states getJobState(uint32_t jobId)
         slurm_free_job_state_response_msg(resp);
         throw SlurmNativeError("slurm_load_job_state");
     } else {
-        job_states state = static_cast<job_states>(resp->jobs->state);
+        job_states state = static_cast<job_states>(JOB_STATE_BASE & resp->jobs->state);
         slurm_free_job_state_response_msg(resp);
         return state;
     }
