@@ -73,12 +73,14 @@ PBS::PBS()
 
 void PBS::submit(nix::StorePath drvPath)
 {
+    auto & jobContext = contexts[drvPath];
+
     auto jobNameStr = nix::fmt("Nix_Build_%s", std::string(drvPath.to_string()));
 
     // We don't know the jobdir until after the job is running, so use a
     // relative path for the script generation and update it to an absolute
     // path after submission.
-    rootPath = nix::fmt("%s.root", jobNameStr.data());
+    jobContext.rootPath = nix::fmt("%s.root", jobNameStr.data());
 
     char tmp_template[] = "pbsscrptXXXXXX";
     snprintf(scriptName, sizeof(scriptName), "%s/%s", std::filesystem::temp_directory_path().c_str(), tmp_template);
@@ -88,7 +90,7 @@ void PBS::submit(nix::StorePath drvPath)
     createdScript = true;
     __gnu_cxx::stdio_filebuf<char> scriptOutBuf(fd, std::ios::out);
     std::ostream scriptOut(&scriptOutBuf);
-    scriptOut << genScript(drvPath, rootPath);
+    scriptOut << genScript(drvPath, jobContext.rootPath);
     scriptOut.flush();
 
     // Attribute chain:
@@ -136,18 +138,18 @@ void PBS::submit(nix::StorePath drvPath)
         }
         throw PBSSubmitError(nix::fmt("Error submitting PBS job: %s", pbs_geterrmsg(connHandle)));
     }
-    jobId = id;
+    jobContext.jobId = id;
     unblockSignals();
 
-    waitForJobRunning(connHandle, jobId);
+    waitForJobRunning(connHandle, jobContext.jobId);
 
     attrl jobdirAttr = {nullptr, ATTR_jobdir, nullptr, nullptr, SET};
     batch_status *jobdirStatus;
     auto sleepTime = 50ms;
     while (true) {
-        jobdirStatus = pbs_statjob(connHandle, jobId.data(), &jobdirAttr, nullptr);
+        jobdirStatus = pbs_statjob(connHandle, jobContext.jobId.data(), &jobdirAttr, nullptr);
         if (jobdirStatus == nullptr) {
-            throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_jobdir, jobId, pbs_errno));
+            throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_jobdir, jobContext.jobId, pbs_errno));
         } else if (jobdirStatus->attribs == nullptr) {
             pbs_statfree(jobdirStatus);
             std::this_thread::sleep_for(sleepTime);
@@ -157,39 +159,41 @@ void PBS::submit(nix::StorePath drvPath)
     std::string jobDir = jobdirStatus->attribs->value;
     pbs_statfree(jobdirStatus);
 
-    auto jobIdNum = nix::tokenizeString<nix::Strings>(jobId, ".").front();
-    jobStderr = nix::fmt("%s/%s.e%s", jobDir, jobNameStr, jobIdNum);
-    rootPath = nix::fmt("%s/%s.root", jobDir, jobNameStr);
+    auto jobIdNum = nix::tokenizeString<nix::Strings>(jobContext.jobId, ".").front();
+    jobContext.jobStderr = nix::fmt("%s/%s.e%s", jobDir, jobNameStr, jobIdNum);
+    jobContext.rootPath = nix::fmt("%s/%s.root", jobDir, jobNameStr);
 
     attrl serverAttr = {nullptr, ATTR_server, nullptr, nullptr, SET};
     sleepTime = 50ms;
     batch_status *serverStatus;
     while (true) {
-        serverStatus = pbs_statjob(connHandle, jobId.data(), &serverAttr, nullptr);
+        serverStatus = pbs_statjob(connHandle, jobContext.jobId.data(), &serverAttr, nullptr);
         if (serverStatus == nullptr) {
-            throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_server, jobId, pbs_errno));
+            throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_server, jobContext.jobId, pbs_errno));
         } else if (serverStatus->attribs == nullptr) {
             pbs_statfree(serverStatus);
             std::this_thread::sleep_for(sleepTime);
             if (sleepTime < 1s) sleepTime *= 2;
         } else break;
     }
-    hostname = serverStatus->attribs->value;
+    jobContext.hostname = serverStatus->attribs->value;
     pbs_statfree(serverStatus);
 }
 
-int PBS::waitForJobFinish()
+int PBS::waitForJobFinish(nix::StorePath drvPath)
 {
+    auto & jobContext = contexts[drvPath];
     auto sleepTime = 50ms;
     while (true) {
-        auto state = getJobState(connHandle, jobId);
+        auto state = getJobState(connHandle, jobContext.jobId);
         if (state == "F") {
             attrl exitAttr = {nullptr, ATTR_exit_status, nullptr, nullptr, SET};
-            batch_status *exitStatus = pbs_statjob(connHandle, jobId.data(), &exitAttr, "x");
+            batch_status *exitStatus = pbs_statjob(connHandle, jobContext.jobId.data(), &exitAttr, "x");
             if (exitStatus == nullptr || exitStatus->attribs == nullptr)
-                throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_exit_status, jobId, pbs_errno));
+                throw PBSQueryError(nix::fmt("Error querying %s for job %s: %d", ATTR_exit_status, jobContext.jobId, pbs_errno));
             auto value = std::atoi(exitStatus->attribs->value);
             pbs_statfree(exitStatus);
+            contexts.erase(drvPath);
             return value;
         }
         std::this_thread::sleep_for(sleepTime);
@@ -202,8 +206,9 @@ PBS::~PBS()
     if (createdScript)
         unlink(scriptName);
 
-    if (!jobId.empty())
-        pbs_deljob(connHandle, jobId.c_str(), nullptr);
+    for (auto & [drvPath, jobContext] : contexts)
+        if (jobContext.jobId != "")
+            pbs_deljob(connHandle, jobContext.jobId.c_str(), nullptr);
 
     pbs_disconnect(connHandle);
 }

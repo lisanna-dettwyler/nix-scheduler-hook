@@ -1,5 +1,6 @@
 #include "scheduler.hh"
 
+#include <nix/store/store-api.hh>
 #include <string>
 #include <exception>
 
@@ -27,5 +28,5 @@ public:
     Slurm();
     ~Slurm();
     void submit(nix::StorePath drvPath);
-    int waitForJobFinish();
+    int waitForJobFinish(nix::StorePath);
 };

@@ -34,7 +34,7 @@ public:
     PBS();
     ~PBS();
     void submit(nix::StorePath drvPath);
-    int waitForJobFinish();
+    int waitForJobFinish(nix::StorePath);
 protected:
     int connHandle;
     char scriptName[MAXPATHLEN + 1];

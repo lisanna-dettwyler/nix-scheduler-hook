@@ -43,8 +43,10 @@ static std::shared_ptr<RestClient::Connection> getConn()
 
 void Slurm::submit(nix::StorePath drvPath)
 {
-    rootPath = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
-    jobStderr = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
+    auto & jobContext = contexts[drvPath];
+
+    jobContext.rootPath = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
+    jobContext.jobStderr = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
 
     char pathVar[] = PATH_VAR;
     json req = {
@@ -52,8 +54,8 @@ void Slurm::submit(nix::StorePath drvPath)
             {"name", "Nix Build - " + std::string(drvPath.to_string())},
             {"current_working_directory", "/tmp"},
             {"environment", {pathVar}},
-            {"script", genScript(drvPath, rootPath)},
-            {"standard_error", jobStderr},
+            {"script", genScript(drvPath, jobContext.rootPath)},
+            {"standard_error", jobContext.jobStderr},
         }}
     };
 
@@ -87,13 +89,13 @@ void Slurm::submit(nix::StorePath drvPath)
             response["errors"][0]["error"]));
     }
     int jobIdInt = response["job_id"];
-    jobId = std::to_string(jobIdInt);
+    jobContext.jobId = std::to_string(jobIdInt);
     unblockSignals();
 
     bool foundBatchHost = false;
     auto sleepTime = 50ms;
     while (!foundBatchHost) {
-        RestClient::Response qr = conn->get("/slurm/" + SLURM_API_VERSION + "/job/" + jobId);
+        RestClient::Response qr = conn->get("/slurm/" + SLURM_API_VERSION + "/job/" + jobContext.jobId);
         json qresp = json::parse(qr.body);
         if (qresp["errors"].size() > 0) {
             throw SlurmAPIError(nix::fmt("%s (%d): %s",
@@ -105,7 +107,7 @@ void Slurm::submit(nix::StorePath drvPath)
             qresp["jobs"][0].contains("batch_host") &&
             qresp["jobs"][0]["batch_host"] != ""
         ) {
-            hostname = qresp["jobs"][0]["batch_host"];
+            jobContext.hostname = qresp["jobs"][0]["batch_host"];
             foundBatchHost = true;
         } else {
             std::this_thread::sleep_for(sleepTime);
@@ -163,8 +165,9 @@ Slurm::Slurm()
         throw SlurmConfigError("slurm-state-dir setting not configured");
 }
 
-int Slurm::waitForJobFinish()
+int Slurm::waitForJobFinish(nix::StorePath drvPath)
 {
+    auto jobId = contexts[drvPath].jobId;
     auto sleepTime = 50ms;
     while (true) {
         auto state = getJobState(jobId);
@@ -184,12 +187,14 @@ int Slurm::waitForJobFinish()
 
 Slurm::~Slurm()
 {
-    try {
-        if (jobId != "" && isLive(getJobState(jobId))) {
-            getConn()->del("/slurm/" + SLURM_API_VERSION + "/job/" + jobId);
+    for (auto & [drvPath, jobContext] : contexts) {
+        try {
+            if (jobContext.jobId != "" && isLive(getJobState(jobContext.jobId))) {
+                getConn()->del("/slurm/" + SLURM_API_VERSION + "/job/" + jobContext.jobId);
+            }
+        } catch (std::exception & e) {
+            using namespace nix;
+            printError("NSH Error: error during Slurm teardown: %s", e.what());
         }
-    } catch (std::exception & e) {
-        using namespace nix;
-        printError("NSH Error: error during Slurm teardown: %s", e.what());
     }
 }

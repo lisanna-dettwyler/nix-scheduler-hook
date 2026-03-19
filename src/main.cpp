@@ -281,7 +281,7 @@ try {
         std::cerr << "# decline-permanently\n";
         return 0;
     }
-    nix::Activity startedJobAct(*nix::logger, nix::lvlInfo, nix::actUnknown, nix::fmt("started job %s on %s", scheduler->getJobId(), host));
+    nix::Activity startedJobAct(*nix::logger, nix::lvlInfo, nix::actUnknown, nix::fmt("started job %s on %s", scheduler->getJobId(drvPath), host));
 
     const std::string storeUri = "ssh-ng://" + host;
     std::shared_ptr<nix::Store> sshStore;
@@ -370,7 +370,7 @@ try {
     std::atomic<bool> cmdAbend = false;
 
     std::thread cmdOutThread([&]() {
-        auto cmdOutIs = scheduler->getStderrStream();
+        auto cmdOutIs = scheduler->getStderrStream(drvPath);
 
         // The invoking Nix process listens on fd 4 for the build log
         // See https://github.com/NixOS/nix/blob/master/src/libstore/unix/build/hook-instance.cc#L61
@@ -406,17 +406,17 @@ try {
 
     int rc;
     try {
-        rc = scheduler->waitForJobFinish();
+        rc = scheduler->waitForJobFinish(drvPath);
     } catch (std::exception & e) {
         using namespace nix;
-        printError("NSH Error: error while waiting for job %s termination: %s", scheduler->getJobId(), e.what());
+        printError("NSH Error: error while waiting for job %s termination: %s", scheduler->getJobId(drvPath), e.what());
         cmdAbend = true;
         cmdOutThread.join();
         return 1;
     }
     if (rc == -1) {
         using namespace nix;
-        printError("NSH Error: job %s abnormally terminated.", scheduler->getJobId());
+        printError("NSH Error: job %s abnormally terminated.", scheduler->getJobId(drvPath));
         cmdAbend = true;
         cmdOutThread.join();
         return 1;

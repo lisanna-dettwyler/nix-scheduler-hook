@@ -19,10 +19,10 @@ struct SlurmNativeConstraintError : public std::runtime_error
 
 class SlurmNative : public Scheduler
 {
-    uint32_t nativeJobId;
+    std::map<nix::StorePath, uint32_t> nativeJobIds;
 public:
     SlurmNative();
     ~SlurmNative();
     void submit(nix::StorePath drvPath);
-    int waitForJobFinish();
+    int waitForJobFinish(nix::StorePath);
 };

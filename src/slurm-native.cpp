@@ -21,8 +21,10 @@ SlurmNative::SlurmNative()
 
 void SlurmNative::submit(nix::StorePath drvPath)
 {
-    rootPath = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
-    jobStderr = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
+    auto & jobContext = contexts[drvPath];
+
+    jobContext.rootPath = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".root";
+    jobContext.jobStderr = ourSettings.slurmStateDir.get() + "/job-" + std::string(drvPath.to_string()) + ".stderr";
 
     job_desc_msg_t job_desc_msg;
     slurm_init_job_desc_msg(&job_desc_msg);
@@ -32,12 +34,12 @@ void SlurmNative::submit(nix::StorePath drvPath)
     job_desc_msg.environment = vars;
     job_desc_msg.env_size = 1;
 
-    auto script = genScript(drvPath, rootPath);
+    auto script = genScript(drvPath, jobContext.rootPath);
     job_desc_msg.script = script.data();
 
     job_desc_msg.work_dir = ourSettings.slurmStateDir.get().data();
 
-    job_desc_msg.std_err = jobStderr.data();
+    job_desc_msg.std_err = jobContext.jobStderr.data();
 
     auto store = nix::openStore();
     auto drv = store->readDerivation(drvPath);
@@ -72,8 +74,8 @@ void SlurmNative::submit(nix::StorePath drvPath)
         slurm_free_submit_response_response_msg(resp);
         throw SlurmNativeError(slurm_strerror(errorCode));
     }
-    nativeJobId = resp->step_id.job_id;
-    jobId = std::to_string(nativeJobId);
+    nativeJobIds[drvPath] = resp->step_id.job_id;
+    jobContext.jobId = std::to_string(resp->step_id.job_id);
     slurm_free_submit_response_response_msg(resp);
     unblockSignals();
 
@@ -81,11 +83,11 @@ void SlurmNative::submit(nix::StorePath drvPath)
     auto sleepTime = 50ms;
     while (!foundBatchHost) {
         job_info_msg_t *resp;
-        if (slurm_load_job(&resp, nativeJobId, 0) || resp->record_count != 1) {
+        if (slurm_load_job(&resp, nativeJobIds[drvPath], 0) || resp->record_count != 1) {
             slurm_free_job_info_msg(resp);
             throw SlurmNativeError("slurm_load_job");
         } else if (resp->job_array->batch_host) {
-            hostname = resp->job_array->batch_host;
+            jobContext.hostname = resp->job_array->batch_host;
             slurm_free_job_info_msg(resp);
             break;
         } else {
@@ -128,8 +130,9 @@ static uint32_t getJobReturnCode(uint32_t jobId)
     }
 }
 
-int SlurmNative::waitForJobFinish()
+int SlurmNative::waitForJobFinish(nix::StorePath drvPath)
 {
+    auto nativeJobId = nativeJobIds[drvPath];
     auto sleepTime = 50ms;
     while (true) {
         auto state = getJobState(nativeJobId);
@@ -149,10 +152,12 @@ int SlurmNative::waitForJobFinish()
 
 SlurmNative::~SlurmNative()
 {
-    if (nativeJobId && isLive(getJobState(nativeJobId))) {
-        if (slurm_kill_job(nativeJobId, SIGTERM, 0) && isLive(getJobState(nativeJobId))) {
-            using namespace nix;
-            printError("error killing job %" PRIu32 ": %s", nativeJobId, slurm_strerror(errno));
+    for (auto & [drvPath, nativeJobId] : nativeJobIds) {
+        if (isLive(getJobState(nativeJobId))) {
+            if (slurm_kill_job(nativeJobId, SIGTERM, 0) && isLive(getJobState(nativeJobId))) {
+                using namespace nix;
+                printError("error killing job %" PRIu32 ": %s", nativeJobId, slurm_strerror(errno));
+            }
         }
     }
 
