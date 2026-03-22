@@ -1,3 +1,4 @@
+<!-- 7686143364045646814 -->
 # Nix Scheduler Hook
 
 This is a build hook that allows Nix builds to be forwarded to clusters running a job scheduler by submitting each build as its own job. It assumes that you can access the host over SSH by the hostname, e.g. `ssh <hostname>`. SSH is used for copying the dependencies and results to and from the job host, and for streaming the build log. Settings are managed with an `nsh.conf` file in your Nix configuration directory, e.g. `/etc/nix/nsh.conf` or `~/.config/nix/nsh.conf`, using the same `key = value` format that `nix.conf` uses. Note that if you installed Nix in multi-user mode (daemon) and wish to use a configuration under a user account, you should use `/root/.config/nix/nsh.conf`.
